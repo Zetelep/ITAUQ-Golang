@@ -1,0 +1,66 @@
+{
+    "metadata": {
+        "id": "sus-v1",
+        "title": "System Usability Scale - Evaluasi Website Sistem Evaluasi Usability",
+        "description": "Kuesioner untuk mengevaluasi usability dari website UAE ITAUQ.",
+        "scaleType": "Likert",
+        "scaleMin": 1,
+        "scaleMax": 5,
+        "minLabel": "Sangat Tidak Setuju",
+        "maxLabel": "Sangat Setuju",
+        "language": "id",
+        "version": 1
+    },
+    "questions": [
+        {
+            "id": 1,
+            "polarity": "positive",
+            "text": "Saya pikir saya akan sering menggunakan website ini."
+        },
+        {
+            "id": 2,
+            "polarity": "negative",
+            "text": "Saya merasa website ini rumit untuk digunakan, padahal seharusnya tidak perlu serumit itu."
+        },
+        {
+            "id": 3,
+            "polarity": "positive",
+            "text": "Saya merasa website ini mudah digunakan."
+        },
+        {
+            "id": 4,
+            "polarity": "negative",
+            "text": "Saya rasa saya membutuhkan bantuan dari orang yang memiliki kemampuan teknis untuk dapat menggunakan website ini."
+        },
+        {
+            "id": 5,
+            "polarity": "positive",
+            "text": "Saya merasa berbagai fitur pada website ini terintegrasi dengan baik."
+        },
+        {
+            "id": 6,
+            "polarity": "negative",
+            "text": "Saya merasa terlalu banyak hal yang tidak konsisten pada website ini."
+        },
+        {
+            "id": 7,
+            "polarity": "positive",
+            "text": "Saya membayangkan sebagian besar orang akan dapat mempelajari cara menggunakan website ini dengan cepat."
+        },
+        {
+            "id": 8,
+            "polarity": "negative",
+            "text": "Saya merasa website ini sangat merepotkan/tidak praktis untuk digunakan."
+        },
+        {
+            "id": 9,
+            "polarity": "positive",
+            "text": "Saya merasa yakin/percaya diri saat menggunakan website ini."
+        },
+        {
+            "id": 10,
+            "polarity": "negative",
+            "text": "Saya perlu mempelajari banyak hal terlebih dahulu sebelum bisa mulai menggunakan website ini."
+        }
+    ]
+}

@@ -1,0 +1,224 @@
+{
+    "metadata": {
+        "id": "itauq-v1",
+        "title": "Indonesian Tourism Application Usability Questionnaire",
+        "description": "Questionnaire for evaluating usability of Indonesian tourism application.",
+        "scaleType": "Likert",
+        "scaleMin": 1,
+        "scaleMax": 7,
+        "language": "id",
+        "version": 1
+    },
+    "questions": [
+        {
+            "id": 1,
+            "category": "Attractiveness",
+            "text": "Desain Aplikasi {AppName} tampak menarik secara visual.",
+            "minLabel": "tidak menarik",
+            "maxLabel": "sangat menarik"
+        },
+        {
+            "id": 2,
+            "category": "Attractiveness",
+            "text": "Saya merasa nyaman dan senang menggunakan Aplikasi {AppName}.",
+            "minLabel": "tidak menyenangkan",
+            "maxLabel": "sangat menyenangkan"
+        },
+        {
+            "id": 3,
+            "category": "Attractiveness",
+            "text": "Tampilan Aplikasi {AppName} mendukung kebutuhan saya dalam merencanakan perjalanan wisata.",
+            "minLabel": "tidak sesuai",
+            "maxLabel": "sangat sesuai"
+        },
+        {
+            "id": 4,
+            "category": "Efficiency",
+            "text": "Aplikasi {AppName} membantu saya menyelesaikan tugas wisata dengan cepat.",
+            "minLabel": "sangat lambat",
+            "maxLabel": "sangat cepat"
+        },
+        {
+            "id": 5,
+            "category": "Efficiency",
+            "text": "Struktur Aplikasi {AppName} mempermudah saya dalam menemukan fitur yang diperlukan.",
+            "minLabel": "sangat sulit",
+            "maxLabel": "sangat mudah"
+        },
+        {
+            "id": 6,
+            "category": "Efficiency",
+            "text": "Aplikasi {AppName} membantu saya menghemat waktu saat merencanakan perjalanan.",
+            "minLabel": "sangat tidak efisien",
+            "maxLabel": "sangat efisien"
+        },
+        {
+            "id": 7,
+            "category": "Dependability",
+            "text": "Aplikasi {AppName} dapat diandalkan untuk memenuhi kebutuhan perjalanan saya.",
+            "minLabel": "tidak dapat diandalkan",
+            "maxLabel": "sangat dapat diandalkan"
+        },
+        {
+            "id": 8,
+            "category": "Dependability",
+            "text": "Informasi dalam Aplikasi {AppName} akurat dan terpercaya.",
+            "minLabel": "tidak akurat",
+            "maxLabel": "sangat akurat"
+        },
+        {
+            "id": 9,
+            "category": "Dependability",
+            "text": "   ",
+            "minLabel": "tidak berfungsi",
+            "maxLabel": "sangat berfungsi"
+        },
+        {
+            "id": 10,
+            "category": "Stimulation",
+            "text": "Aplikasi {AppName} mendorong saya untuk terus menggunkannya.",
+            "minLabel": "tidak antusias",
+            "maxLabel": "sangat antusias"
+        },
+        {
+            "id": 11,
+            "category": "Stimulation",
+            "text": "Fitur-fitur dalam Aplikasi {AppName} menginspirasi saya untuk menjelajahi lebih banyak tempat wisata.",
+            "minLabel": "tidak menginspirasi",
+            "maxLabel": "sangat menginspirasi"
+        },
+        {
+            "id": 12,
+            "category": "Stimulation",
+            "text": "Aplikasi {AppName} memotivasi saya untuk merencanakan perjalanan wisata berikutnya.",
+            "minLabel": "tidak memotivasi",
+            "maxLabel": "sangat memotivasi"
+        },
+        {
+            "id": 13,
+            "category": "Trust",
+            "text": "Saya percaya bahwa data pribadi saya aman dalam Aplikasi {AppName}.",
+            "minLabel": "tidak aman",
+            "maxLabel": "sangat aman"
+        },
+        {
+            "id": 14,
+            "category": "Trust",
+            "text": "Aplikasi {AppName} memberikan layanan yang dapat dipercaya untuk kebutuhan perjalanan saya.",
+            "minLabel": "tidak terpercaya",
+            "maxLabel": "sangat terpercaya"
+        },
+        {
+            "id": 15,
+            "category": "Trust",
+            "text": "Informasi yang diberikan oleh Aplikasi {AppName} sesuai dengan kenyataan.",
+            "minLabel": "tidak sesuai",
+            "maxLabel": "sangat sesuai"
+        },
+        {
+            "id": 16,
+            "category": "Novelty",
+            "text": "Aplikasi {AppName} menawarkan fitur-fitur baru yang unik.",
+            "minLabel": "tidak unik",
+            "maxLabel": "sangat unik"
+        },
+        {
+            "id": 17,
+            "category": "Novelty",
+            "text": "Ide-ide yang diterapkan dalam Aplikasi {AppName} terasa kreatif.",
+            "minLabel": "tidak kreatif",
+            "maxLabel": "sangat kreatif"
+        },
+        {
+            "id": 18,
+            "category": "Novelty",
+            "text": "Aplikasi {AppName} berbeda dibandingkan aplikasi pariwisata lainnya.",
+            "minLabel": "tidak berbeda",
+            "maxLabel": "sangat berbeda"
+        },
+        {
+            "id": 19,
+            "category": "User Satisfaction",
+            "text": "Saya merasa puas dengan pengalaman menggunakan Aplikasi {AppName} untuk kebutuhan perjalanan saya.",
+            "minLabel": "tidak puas",
+            "maxLabel": "sangat puas"
+        },
+        {
+            "id": 20,
+            "category": "User Satisfaction",
+            "text": "Saya bersedia merekomendasikan Aplikasi {AppName} kepada teman atau keluarga saya.",
+            "minLabel": "tidak merekomendasikan",
+            "maxLabel": "sangat merekomendasikan"
+        },
+        {
+            "id": 21,
+            "category": "User Satisfaction",
+            "text": "Pengalaman saya menggunakan Aplikasi {AppName} memenuhi harapan saya",
+            "minLabel": "tidak sesuai",
+            "maxLabel": "sangat sesuai"
+        },
+        {
+            "id": 22,
+            "category": "Accessibility",
+            "text": "Aplikasi {AppName} mudah digunakan oleh semua pengguna, termasuk mereka dengan kebutuhan khusus.",
+            "minLabel": "tidak mudah",
+            "maxLabel": "sangat mudah"
+        },
+        {
+            "id": 23,
+            "category": "Accessibility",
+            "text": "Informasi dalam Aplikasi {AppName} dapat diakses dengan mudah, termasuk oleh pengguna dengan keterbatasan tertentu.",
+            "minLabel": "sulit diakses",
+            "maxLabel": "mudah diakses"
+        },
+        {
+            "id": 24,
+            "category": "Accessibility",
+            "text": "Aplikasi {AppName} menyediakan opsi tambahan (seperti ukuran font atau mode gelap) untuk meningkatkan kenyamanan penggunaan.",
+            "minLabel": "tidak tersedia",
+            "maxLabel": "sangat tersedia"
+        },
+        {
+            "id": 25,
+            "category": "Social Interaction",
+            "text": "Saya merasa mudah berbagi pengalaman atau ulasan melalui Aplikasi {AppName}.",
+            "minLabel": "tidak mudah",
+            "maxLabel": "sangat mudah"
+        },
+        {
+            "id": 26,
+            "category": "Social Interaction",
+            "text": "Aplikasi {AppName} memungkinkan saya terhubung dengan pengguna lain atau komunitas wisata.",
+            "minLabel": "tidak memungkinkan",
+            "maxLabel": "sangat memungkinkan"
+        },
+        {
+            "id": 27,
+            "category": "Social Interaction",
+            "text": "Fitur sosial dalam Aplikasi {AppName} meningkatkan pengalaman perjalanan saya.",
+            "minLabel": "tidak meningkatkan",
+            "maxLabel": "sangat meningkatkan"
+        },
+        {
+            "id": 28,
+            "category": "Learnability",
+            "text": "Saya dapat memahami cara kerja Aplikasi {AppName} dengan mudah pada penggunaan pertama.",
+            "minLabel": "sangat sulit",
+            "maxLabel": "sangat mudah"
+        },
+        {
+            "id": 29,
+            "category": "Learnability",
+            "text": "Saya dapat dengan cepat menemukan fitur-fitur utama Aplikasi {AppName} saat pertama kali menggunakannya.",
+            "minLabel": "sangat sulit",
+            "maxLabel": "sangat mudah"
+        },
+        {
+            "id": 30,
+            "category": "Learnability",
+            "text": "Panduan atau penjelasan dalam Aplikasi {AppName} memadai untuk membantu saya memahami cara menggunakannya.",
+            "minLabel": "sangat sulit",
+            "maxLabel": "sangat mudah"
+        }
+    ]
+}

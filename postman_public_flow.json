@@ -1,0 +1,724 @@
+{
+  "info": {
+    "name": "ITAUQ - Public Respondent Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "admin_id", "value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" },
+    { "key": "questionnaire_id", "value": "" },
+    { "key": "task_scenario_id_1", "value": "" },
+    { "key": "task_scenario_id_2", "value": "" },
+    { "key": "evaluation_link_token", "value": "" },
+    { "key": "evaluation_link_id", "value": "" },
+    { "key": "respondent_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Prerequisites",
+      "item": [
+        {
+          "name": "0a. Create Questionnaire",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evaluasi Usability App Wisata Kalsel\",\n  \"app_name\": \"WisataKu\",\n  \"description\": \"Evaluasi tahap 1 untuk skripsi\",\n  \"status\": \"active\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('questionnaire_id', json.data.id);",
+                  "  console.log('Saved questionnaire_id:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0b. Create Task Scenario #1",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/task-scenarios",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mencari destinasi wisata terdekat\",\n  \"instruction\": \"Gunakan fitur pencarian untuk menemukan tempat wisata dalam radius 5km.\",\n  \"task_order\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('task_scenario_id_1', json.data.id);",
+                  "  console.log('Saved task_scenario_id_1:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0c. Create Task Scenario #2",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/task-scenarios",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Melihat detail tempat wisata\",\n  \"instruction\": \"Klik salah satu hasil pencarian dan lihat informasi lengkapnya.\",\n  \"task_order\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('task_scenario_id_2', json.data.id);",
+                  "  console.log('Saved task_scenario_id_2:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0d. Create Evaluation Link",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/evaluation-links",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Has token and url', function () {",
+                  "  pm.expect(json.data.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(json.data.url).to.include(json.data.token);",
+                  "});",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('evaluation_link_token', json.data.token);",
+                  "  console.log('Saved evaluation_link_token:', json.data.token);",
+                  "}",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('evaluation_link_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. GET /public/evaluation/:token",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Has questionnaire', function () {",
+              "  pm.expect(json.data.questionnaire).to.be.an('object');",
+              "  pm.expect(json.data.questionnaire.app_name).to.eql('WisataKu');",
+              "});",
+              "pm.test('Has task scenarios', function () {",
+              "  pm.expect(json.data.task_scenarios).to.be.an('array').with.lengthOf(2);",
+              "});",
+              "pm.test('Has ITAUQ instrument with 30 questions', function () {",
+              "  pm.expect(json.data.itauq.version).to.eql('itauq-v1');",
+              "  pm.expect(json.data.itauq.scale_min).to.eql(1);",
+              "  pm.expect(json.data.itauq.scale_max).to.eql(7);",
+              "  pm.expect(json.data.itauq.questions).to.have.lengthOf(30);",
+              "});",
+              "pm.test('{AppName} substituted in questions', function () {",
+              "  var q = json.data.itauq.questions[0];",
+              "  pm.expect(q.text).to.include('WisataKu');",
+              "  pm.expect(q.text).to.not.include('{AppName}');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. POST /public/evaluation/:token/respondents",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ahmad\",\n  \"email\": \"ahmad@example.com\",\n  \"age\": 22,\n  \"gender\": \"male\",\n  \"occupation\": \"Mahasiswa\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+              "var json = pm.response.json();",
+              "pm.test('Has respondent_id and started_at', function () {",
+              "  pm.expect(json.data.respondent_id).to.be.a('string').and.not.empty;",
+              "  pm.expect(json.data.started_at).to.be.a('string').and.not.empty;",
+              "});",
+              "if (json.data && json.data.respondent_id) {",
+              "  pm.collectionVariables.set('respondent_id', json.data.respondent_id);",
+              "  console.log('Saved respondent_id:', json.data.respondent_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2b. Start Respondent (minimal — name only)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Siti\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. POST /public/evaluation/:token/respondents/:respondent_id/answers (valid 30)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/answers",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"category\":\"Attractiveness\",\"score\":6},\n    {\"item_id\":2,\"category\":\"Attractiveness\",\"score\":7},\n    {\"item_id\":3,\"category\":\"Attractiveness\",\"score\":5},\n    {\"item_id\":4,\"category\":\"Efficiency\",\"score\":6},\n    {\"item_id\":5,\"category\":\"Efficiency\",\"score\":6},\n    {\"item_id\":6,\"category\":\"Efficiency\",\"score\":5},\n    {\"item_id\":7,\"category\":\"Dependability\",\"score\":7},\n    {\"item_id\":8,\"category\":\"Dependability\",\"score\":6},\n    {\"item_id\":9,\"category\":\"Dependability\",\"score\":5},\n    {\"item_id\":10,\"category\":\"Stimulation\",\"score\":6},\n    {\"item_id\":11,\"category\":\"Stimulation\",\"score\":6},\n    {\"item_id\":12,\"category\":\"Stimulation\",\"score\":5},\n    {\"item_id\":13,\"category\":\"Trust\",\"score\":7},\n    {\"item_id\":14,\"category\":\"Trust\",\"score\":7},\n    {\"item_id\":15,\"category\":\"Trust\",\"score\":6},\n    {\"item_id\":16,\"category\":\"Novelty\",\"score\":5},\n    {\"item_id\":17,\"category\":\"Novelty\",\"score\":5},\n    {\"item_id\":18,\"category\":\"Novelty\",\"score\":6},\n    {\"item_id\":19,\"category\":\"User Satisfaction\",\"score\":7},\n    {\"item_id\":20,\"category\":\"User Satisfaction\",\"score\":7},\n    {\"item_id\":21,\"category\":\"User Satisfaction\",\"score\":6},\n    {\"item_id\":22,\"category\":\"Accessibility\",\"score\":5},\n    {\"item_id\":23,\"category\":\"Accessibility\",\"score\":6},\n    {\"item_id\":24,\"category\":\"Accessibility\",\"score\":5},\n    {\"item_id\":25,\"category\":\"Social Interaction\",\"score\":5},\n    {\"item_id\":26,\"category\":\"Social Interaction\",\"score\":5},\n    {\"item_id\":27,\"category\":\"Social Interaction\",\"score\":6},\n    {\"item_id\":28,\"category\":\"Learnability\",\"score\":7},\n    {\"item_id\":29,\"category\":\"Learnability\",\"score\":7},\n    {\"item_id\":30,\"category\":\"Learnability\",\"score\":6}\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+              "var json = pm.response.json();",
+              "pm.test('Echoed 30 answers', function () {",
+              "  pm.expect(json.data.answers).to.have.lengthOf(30);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3b. POST /public/evaluation/:token/respondents/:respondent_id/sus-answers (valid 10)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/sus-answers",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"score\":4},\n    {\"item_id\":2,\"score\":2},\n    {\"item_id\":3,\"score\":4},\n    {\"item_id\":4,\"score\":2},\n    {\"item_id\":5,\"score\":4},\n    {\"item_id\":6,\"score\":1},\n    {\"item_id\":7,\"score\":5},\n    {\"item_id\":8,\"score\":2},\n    {\"item_id\":9,\"score\":4},\n    {\"item_id\":10,\"score\":2}\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+              "var json = pm.response.json();",
+              "pm.test('Echoed 10 SUS answers', function () {",
+              "  pm.expect(json.data.answers).to.have.lengthOf(10);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. POST /public/evaluation/:token/respondents/:respondent_id/task-attempts",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/task-attempts",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"attempts\": [\n    {\"task_scenario_id\":\"{{task_scenario_id_1}}\",\"is_success\":true,\"duration_seconds\":42,\"notes\":\"Mudah dicari\"},\n    {\"task_scenario_id\":\"{{task_scenario_id_2}}\",\"is_success\":false,\"duration_seconds\":120,\"notes\":\"Butuh loading lama\"}\n  ]\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+              "var json = pm.response.json();",
+              "pm.test('Echoed both attempts', function () {",
+              "  pm.expect(json.data.attempts).to.have.lengthOf(2);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. POST /public/evaluation/:token/respondents/:respondent_id/submit",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/submit",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Has submitted_at', function () {",
+              "  pm.expect(json.data.submitted_at).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "item": [
+        {
+          "name": "Error: GET with unknown token (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/public/evaluation/nonexistent",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Error code NOT_FOUND', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Start respondent with empty name (expect 400)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Start respondent with invalid gender (expect 400)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\",\n  \"gender\": \"robot\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit answers with out-of-range score (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"category\":\"Attractiveness\",\"score\":99}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code INVALID_ANSWERS', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('INVALID_ANSWERS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit answers with mismatched category (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"category\":\"Trust\",\"score\":5}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code INVALID_ANSWERS', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('INVALID_ANSWERS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit answers with unknown item_id (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":99,\"category\":\"Attractiveness\",\"score\":5}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit sus answers with out-of-range score (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/sus-answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"score\":99}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code INVALID_SUS_ANSWERS', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('INVALID_SUS_ANSWERS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit task attempts with unknown scenario (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/task-attempts",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attempts\": [\n    {\"task_scenario_id\":\"00000000-0000-0000-0000-000000000000\",\"is_success\":true,\"duration_seconds\":30}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code INVALID_ATTEMPTS', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('INVALID_ATTEMPTS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit with unknown respondent_id (expect 404)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/00000000-0000-0000-0000-000000000000/submit",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Submit incomplete session (expect 400)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/submit",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Error code INCOMPLETE_SESSION', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('INCOMPLETE_SESSION');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Use wrong token on nested endpoint (expect 404)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/wrongtoken/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Inactive/expired link scenarios",
+      "item": [
+        {
+          "name": "Pre: Deactivate evaluation link",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/evaluation-links/{{evaluation_link_id}}",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Deactivated', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.data.is_active).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET inactive link (expect 409)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('Error code LINK_INACTIVE', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('LINK_INACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Start respondent on inactive link (expect 409)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Late\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
