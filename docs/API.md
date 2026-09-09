@@ -247,10 +247,24 @@ Approve an application. Creates Supabase Auth user and profile.
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "status": "approved",
-    "reviewed_at": "2026-08-21T11:00:00Z",
-    "review_note": "Diverifikasi, sesuai dengan data kampus."
+    "application": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "full_name": "Siti Aminah",
+      "email": "siti@example.com",
+      "institution": "Universitas ABC",
+      "occupation": "Dosen",
+      "reason": "Ingin melakukan evaluasi usability aplikasi",
+      "status": "approved",
+      "review_note": "Diverifikasi, sesuai dengan data kampus.",
+      "reviewed_by": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "reviewed_at": "2026-08-21T11:00:00Z",
+      "created_at": "2026-08-21T10:30:00Z"
+    },
+    "administrator": {
+      "id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+      "email": "siti@example.com",
+      "role": "administrator"
+    }
   }
 }
 ```
@@ -280,9 +294,16 @@ Reject an application.
   "success": true,
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "full_name": "Siti Aminah",
+    "email": "siti@example.com",
+    "institution": "Universitas ABC",
+    "occupation": "Dosen",
+    "reason": "Ingin melakukan evaluasi usability aplikasi",
     "status": "rejected",
+    "review_note": "Data institusi tidak dapat diverifikasi.",
+    "reviewed_by": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     "reviewed_at": "2026-08-21T11:00:00Z",
-    "review_note": "Data institusi tidak dapat diverifikasi."
+    "created_at": "2026-08-21T10:30:00Z"
   }
 }
 ```
@@ -1256,6 +1277,15 @@ Loads everything the respondent-facing app needs to render the flow.
           "maxLabel": "sangat menarik"
         }
       ]
+    },
+    "sus": {
+      "version": "sus-v1",
+      "scale_min": 1,
+      "scale_max": 5,
+      "questions": [
+        { "id": 1, "text": "Saya pikir saya akan sering menggunakan website ini.", "polarity": "positive" },
+        { "id": 2, "text": "Saya merasa website ini rumit untuk digunakan, padahal seharusnya tidak perlu serumit itu.", "polarity": "negative" }
+      ]
     }
   }
 }
@@ -1297,7 +1327,7 @@ Starts a respondent session for this evaluation link. If the questionnaire has a
 | `name` | string | Yes | Respondent name |
 | `email` | string | No | Email address |
 | `age` | integer | No | Age (must be ≥ 0) |
-| `gender` | string | No | `male`, `female`, or `other` |
+| `gender` | string | No | `male`, `female`, `other`, or `prefer_not_to_say` |
 | `occupation` | string | No | Job/role |
 | `checked_criteria_ids` | uuid[] | Conditional | The IDs of the criteria the respondent has confirmed. Required only when the questionnaire has at least one active criterion; ignored otherwise. Each ID must be a criterion of the questionnaire, and the union must cover every active criterion (extra stale IDs are tolerated). |
 
@@ -1801,7 +1831,7 @@ Aggregate report across **all** respondents of one questionnaire — the "Genera
 | `name` | text | Respondent name |
 | `email` | text | Respondent email |
 | `age` | integer | Respondent age |
-| `gender` | enum | `male`, `female` |
+| `gender` | enum | `male`, `female`, `other`, `prefer_not_to_say` |
 | `occupation` | text | Respondent occupation |
 | `extra_data` | jsonb | Additional data |
 | `started_at` | timestamp | Session start |
@@ -1964,35 +1994,44 @@ cmd/api/main.go                 # Entry point
 internal/
   domain/                       # Business entities
     application/                # Application domain
+    administrator/              # Administrator domain
     questionnaire/              # Questionnaire domain
     taskscenario/               # Task scenario domain
     eligibility/                # Eligibility criterion domain
     evaluationlink/             # Evaluation link domain
+    evaluation/                 # Evaluation results domain
+    profile/                    # Profile domain
+    respondent/                 # Respondent domain
   repository/                   # Data access layer
     application/                # In-memory + PostgreSQL
+    administrator/              # In-memory + PostgreSQL
     questionnaire/              # In-memory + PostgreSQL
     taskscenario/               # In-memory + PostgreSQL
     eligibility/                # In-memory + PostgreSQL
     evaluationlink/             # In-memory + PostgreSQL
+    evaluation/                 # In-memory + PostgreSQL
+    profile/                    # In-memory + PostgreSQL
+    respondent/                 # In-memory + PostgreSQL
   usecase/                      # Business logic
     application/                # Application use cases
+    administrator/              # Administrator use cases
     questionnaire/              # Questionnaire use cases
     taskscenario/               # Task scenario use cases
     eligibility/                # Eligibility criterion use cases
     evaluationlink/             # Evaluation link use cases
+    evaluation/                 # Evaluation results use cases
+    profile/                    # Profile use cases
+    publicflow/                 # Public respondent flow use cases
   delivery/http/                # HTTP layer
     handler/                    # Request handlers
-    middleware/                  # Auth middleware
     route/                      # Route definitions
   infrastructure/               # External services
     config/                     # Configuration
     database/                   # Database connection
     supabase/                   # Supabase integration
 pkg/                            # Shared utilities
-  errors/                       # Error types
-  response/                     # Response helpers
-  utils/                        # Utility functions
-  validator/                    # Input validation
+  itauq/                        # ITAUQ instrument loader & scoring
+  sus/                          # SUS instrument loader & scoring
 ```
 
 ---
