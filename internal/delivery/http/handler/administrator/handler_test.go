@@ -205,6 +205,81 @@ func TestDeleteHappy(t *testing.T) {
 	}
 }
 
+func TestUpdateIsActiveOnly(t *testing.T) {
+	r := newTestRouter(t)
+	id := seedAdmin(t, r)
+
+	w := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"is_active":false}`)
+	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200. body=%s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Data struct {
+			FullName string `json:"full_name"`
+			IsActive bool   `json:"is_active"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Data.IsActive {
+		t.Fatalf("expected is_active=false, got true")
+	}
+	if resp.Data.FullName != "John Doe" {
+		t.Fatalf("expected full_name preserved, got %s", resp.Data.FullName)
+	}
+}
+
+func TestUpdateBothFields(t *testing.T) {
+	r := newTestRouter(t)
+	id := seedAdmin(t, r)
+
+	w := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"full_name":"Jane Smith","is_active":false}`)
+	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200. body=%s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Data struct {
+			FullName string `json:"full_name"`
+			IsActive bool   `json:"is_active"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Data.FullName != "Jane Smith" {
+		t.Fatalf("expected full_name=Jane Smith, got %s", resp.Data.FullName)
+	}
+	if resp.Data.IsActive {
+		t.Fatalf("expected is_active=false, got true")
+	}
+}
+
+func TestUpdateRejectsEmptyFullName(t *testing.T) {
+	r := newTestRouter(t)
+	id := seedAdmin(t, r)
+
+	w := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"full_name":"   "}`)
+	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400. body=%s", w.Code, w.Body.String())
+	}
+}
+
 func TestDeleteNotFound(t *testing.T) {
 	r := newTestRouter(t)
 	w := httptest.NewRecorder()
