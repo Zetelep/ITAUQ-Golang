@@ -97,11 +97,17 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, in domain.Up
 	args := []any{id}
 	argIdx := 2
 	if in.FullName != nil {
+		if setClauses != "" {
+			setClauses += ", "
+		}
 		setClauses += fmt.Sprintf("full_name = $%d", argIdx)
 		args = append(args, *in.FullName)
 		argIdx++
 	}
 	if in.IsActive != nil {
+		if setClauses != "" {
+			setClauses += ", "
+		}
 		setClauses += fmt.Sprintf("is_active = $%d", argIdx)
 		args = append(args, *in.IsActive)
 		argIdx++
