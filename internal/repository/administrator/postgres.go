@@ -115,7 +115,7 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, in domain.Up
 	if setClauses == "" {
 		return r.Get(ctx, id)
 	}
-	query := fmt.Sprintf("UPDATE public.profiles SET %s WHERE id = $1 AND roles::text = 'administrator' RETURNING %s", setClauses, adminColumns)
+	query := fmt.Sprintf("UPDATE public.profiles p SET %s WHERE p.id = $1 AND p.roles::text = 'administrator' RETURNING %s", setClauses, adminColumns)
 	row := r.db.QueryRow(ctx, query, args...)
 	a, err := scanAdministrator(row)
 	if errors.Is(err, pgx.ErrNoRows) {
