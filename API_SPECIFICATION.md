@@ -71,6 +71,7 @@ List endpoints accept `?page=1&page_size=20` and return:
 | Submit account request (new) | `POST /applications` |
 | Review submissions (new) | `GET /applications`, `PATCH /applications/{id}/approve`, `PATCH /applications/{id}/reject` |
 | Edit own profile (new) | `GET /profiles/me`, `PATCH /profiles/me` |
+| First-login forced password change | `GET /profiles/me` (read `must_change_password`), `POST /auth/change-password` |
 | Manage Administrator | `GET/POST/PATCH/DELETE /administrators` |
 | Manage Questionnaire and Task Scenario | `/questionnaires`, `/questionnaires/{id}/task-scenarios` |
 | Generate Link for Respondent | `POST /questionnaires/{id}/evaluation-links` |
@@ -158,16 +159,19 @@ Lets the logged-in user (Super Admin or Administrator) fetch and edit their **ow
   "data": {
     "id": "uuid",
     "full_name": "Siti Aminah",
-    "email": "siti@example.com",
+    "occupation": "Dosen",
+    "institution": "Universitas ABC",
     "role": "administrator",
-    "is_active": true,
+    "must_change_password": true,
     "created_at": "2026-06-01T08:00:00Z"
   }
 }
 ```
 
+When `must_change_password` is `true`, the frontend should immediately redirect the user to the change-password screen and block navigation until `POST /auth/change-password` succeeds.
+
 ### `PATCH /profiles/me`
-Edits the caller's own profile. Only `full_name` is editable here — `role` and `is_active` are Super-Admin-controlled (via `/administrators`), and `email` is tied to the Supabase Auth identity, so email changes go through Supabase's own `updateUser` flow on the frontend, not this API.
+Edits the caller's own profile. Only `full_name` is editable here — `role` is Super-Admin-controlled (via `/administrators`), and `email` is tied to the Supabase Auth identity, so email changes go through Supabase's own `updateUser` flow on the frontend, not this API.
 
 **Auth:** Bearer (Super Admin or Administrator)
 **Body:**
@@ -176,6 +180,26 @@ Edits the caller's own profile. Only `full_name` is editable here — `role` and
 ```
 **Response `200`:** the updated profile.
 **Errors:** `400` if `full_name` is blank; any other field in the body is ignored or rejected with `VALIDATION_ERROR`.
+
+### `POST /auth/change-password`
+Forces the caller to rotate their password. Used as the first step after first login (the account is provisioned with a temporary password and `must_change_password = true`). On success, the `must_change_password` flag on the caller's profile is cleared, so the frontend can release navigation.
+
+**Auth:** Bearer (Super Admin or Administrator)
+**Body:**
+```json
+{
+  "current_password": "12345678",
+  "new_password": "newSecret!9"
+}
+```
+- `current_password` is accepted for client-side convenience but the backend uses the service-role admin API to set the new password, so any mismatch is intentionally not validated server-side (the caller's identity comes from the JWT). `current_password` may be omitted if the caller only has the temporary password.
+- `new_password` must be at least 8 characters.
+
+**Response `200`:**
+```json
+{ "success": true, "data": { "message": "password updated" } }
+```
+**Errors:** `400 VALIDATION_ERROR` if `new_password` is shorter than 8 characters; `400 PASSWORD_UPDATE_FAILED` if the Supabase admin update fails.
 
 ---
 
@@ -275,6 +299,35 @@ Nested under a questionnaire.
 **Auth:** Owning Administrator · **Response:** `204`
 
 ---
+### 6b. Eligibility Criteria (Terms & Conditions checklist)
+
+Nested under a questionnaire, like Task Scenarios. These are the statements a respondent must tick before they're allowed to fill in their identity (e.g. domicile, citizenship, age group) — dynamic and Administrator-defined per questionnaire, unlike the fixed ITAUQ/SUS instruments.
+
+### `GET /questionnaires/{id}/eligibility-criteria`
+
+**Auth:** Owning Administrator or Super Admin
+
+### `POST /questionnaires/{id}/eligibility-criteria`
+
+**Auth:** Owning Administrator
+**Body:**
+```json
+{
+  "statement": "Saya berdomisili di Kota Banjarbaru",
+  "criteria_order": 1
+}
+```
+
+### `PATCH /eligibility-criteria/{id}`
+
+**Auth:** Owning Administrator (ownership resolved via parent questionnaire)
+**Body:** any subset of `statement`, `criteria_order`.
+
+### `DELETE /eligibility-criteria/{id}`
+
+**Auth:** Owning Administrator · **Response:** `204`
+
+---
 
 ## 7. Evaluation Links
 
@@ -303,7 +356,8 @@ Generates a new public token/link for this questionnaire.
     "is_active": true,
     "expires_at": null
   }
-}```
+}
+```
 
 ### `PATCH /evaluation-links/{id}`
 Deactivate a link or change its expiry.
@@ -317,12 +371,12 @@ Deactivate a link or change its expiry.
 ---
 
 ## 8. Public Respondent Flow
- 
+
 Maps to "Fill Questionnaire & Task Scenario". No login — identified only by the link `token` and, after starting, a `respondent_id`. These endpoints write through the backend's service role, per the RLS design (respondents/answers have no public Supabase policies).
- 
+
 ### `GET /public/evaluation/{token}`
 Loads everything the respondent-facing app needs to render the flow.
- 
+
 **Auth:** none
 **Response `200`:**
 ```json
@@ -330,6 +384,11 @@ Loads everything the respondent-facing app needs to render the flow.
   "success": true,
   "data": {
     "questionnaire": { "title": "Evaluasi Usability App Wisata Kalsel", "app_name": "WisataKu" },
+    "eligibility_criteria": [
+      { "id": "uuid", "statement": "Saya berdomisili di Kota Banjarbaru", "criteria_order": 1 },
+      { "id": "uuid", "statement": "Saya bukan warga negara asing", "criteria_order": 2 },
+      { "id": "uuid", "statement": "Saya berusia 18-25 tahun", "criteria_order": 3 }
+    ],
     "task_scenarios": [
       { "id": "uuid", "title": "Mencari destinasi wisata terdekat", "instruction": "...", "task_order": 1 }
     ],
@@ -339,23 +398,31 @@ Loads everything the respondent-facing app needs to render the flow.
 }
 ```
 **Errors:** `404` unknown token, `409` link `is_active = false` or past `expires_at`.
- 
+
 ### `POST /public/evaluation/{token}/respondents`
-Submits respondent identity, starts a session.
- 
+Gate + identity in one step: the respondent must have ticked **every** eligibility criterion for this questionnaire, submitted together with their identity. The backend validates that `checked_criteria_ids` covers all of `eligibility_criteria` from the `GET` above before creating anything — if any are missing, nothing is written.
+
 **Auth:** none
 **Body:**
 ```json
-{ "name": "Ahmad", "email": "ahmad@example.com", "age": 22, "gender": "male", "occupation": "Mahasiswa" }
+{
+  "name": "Ahmad",
+  "email": "ahmad@example.com",
+  "age": 22,
+  "gender": "male",
+  "occupation": "Mahasiswa",
+  "checked_criteria_ids": ["uuid-1", "uuid-2", "uuid-3"]
+}
 ```
+**Errors:** `422 (code: ELIGIBILITY_NOT_CONFIRMED)` if `checked_criteria_ids` doesn't cover every active criterion for the questionnaire.
 **Response `201`:**
 ```json
 { "success": true, "data": { "respondent_id": "uuid", "started_at": "..." } }
 ```
- 
+
 ### `POST /public/evaluation/{token}/respondents/{respondent_id}/task-attempts`
 Submits results for the task scenarios (batch, one call per task or all at once).
- 
+
 **Auth:** none (respondent_id acts as the session key)
 **Body:**
 ```json
@@ -366,10 +433,10 @@ Submits results for the task scenarios (batch, one call per task or all at once)
 }
 ```
 **Response `201`:** echoes stored attempts.
- 
+
 ### `POST /public/evaluation/{token}/respondents/{respondent_id}/answers`
 Submits ITAUQ Likert answers, typically all 30 at once.
- 
+
 **Auth:** none
 **Body:**
 ```json
@@ -382,10 +449,10 @@ Submits ITAUQ Likert answers, typically all 30 at once.
 ```
 `item_id`/`category`/`score` are validated server-side against the shipped `itauq-v1` JSON before insert (matches the DB check constraints `item_id 1–30`, `score 1–7`).
 **Response `201`:** echoes stored answers. **Errors:** `422` if any `item_id`/`category` pair doesn't match the instrument, or `score` is out of range.
- 
+
 ### `POST /public/evaluation/{token}/respondents/{respondent_id}/sus-answers`
 Submits the System Usability Scale (SUS) answers — the respondent's rating of the **evaluation website itself** (not the app being evaluated). Filled once, all 10 items, right after the ITAUQ answers.
- 
+
 **Auth:** none
 **Body:**
 ```json
@@ -398,38 +465,38 @@ Submits the System Usability Scale (SUS) answers — the respondent's rating of 
 ```
 `item_id`/`score` are validated server-side against the fixed 10-item SUS instrument (matches the DB check constraints `item_id 1–10`, `score 1–5`).
 **Response `201`:** echoes stored answers. **Errors:** `422` if `item_id` isn't 1–10 or `score` is outside 1–5.
- 
+
 ### `POST /public/evaluation/{token}/respondents/{respondent_id}/submit`
 Finalizes the session (sets `submitted_at`). Backend should verify all 30 ITAUQ answers, all 10 SUS answers, and all task attempts exist before accepting.
- 
+
 **Auth:** none
 **Response `200`:** `{ "success": true, "data": { "submitted_at": "..." } }`
 **Errors:** `400` if incomplete (missing ITAUQ answers, SUS answers, or task attempts).
- 
+
 ---
- 
+
 ## 9. Instruments (reference, not DB-backed)
- 
+
 Both instruments below are fixed and shipped as constants/JSON in your codebase — not stored or manageable in the database (see schema notes on `questionnaire_answers` and `sus_answers`).
- 
+
 ### `GET /instruments/itauq`
 Serves the fixed 30-question ITAUQ instrument straight from the backend's bundled JSON — useful for the Administrator-facing frontend to preview questions, and reused internally by `GET /public/evaluation/{token}`.
- 
+
 **Auth:** Bearer (Administrator or Super Admin)
 **Response `200`:** the itauq-v1 JSON as uploaded (metadata + 30 questions).
- 
+
 > Note: fix item `id: 9` (currently blank `text`) in the source JSON before wiring this endpoint up.
- 
+
 ### `GET /instruments/sus`
 Serves the fixed 10-item SUS instrument (about the evaluation website itself).
- 
+
 **Auth:** Bearer (Administrator or Super Admin)
 **Response `200`:**
 ```json
 {
   "success": true,
   "data": {
-    "version": "sus-idn",
+    "version": "sus-v1",
     "scale_min": 1,
     "scale_max": 5,
     "questions": [
@@ -440,12 +507,22 @@ Serves the fixed 10-item SUS instrument (about the evaluation website itself).
 }
 ```
 `polarity` tells the frontend/backend which items are odd/even for scoring — matches `v_respondent_sus_score`'s `item_id % 2` rule, so keep item order fixed at 1–10 exactly as the standard SUS defines it.
- 
+
 ---
- 
+
 ## 10. Evaluation Results & Reports
  
 Maps to "View Own/All Evaluation Result" and "Generate Evaluation Report". Backed by the `v_evaluation_report`, `v_respondent_category_scores`, `v_respondent_overall_score`, `v_respondent_task_success`, `v_respondent_sus_score` views.
+
+ITAUQ Formula
+$$
+\text{Skor Variabel} = \frac{x_1 + x_2 + x_3}{3}
+\tag{4}
+$$
+
+$$
+\bar{x} = \frac{\sum \text{Skor Variabel}}{n}
+$$
  
 ### `GET /respondents`
 List respondents with their computed scores. Automatically scoped:
@@ -560,3 +637,4 @@ Same data as above, rendered as a file.
 | `ITEM_OUT_OF_RANGE` | 422 | `item_id` not in 1–30 or `score` outside 1–7 |
 | `INCOMPLETE_SUBMISSION` | 400 | Respondent tried to submit before answering all items/tasks |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
+| `ELIGIBILITY_NOT_CONFIRMED` | 422 | Respondent's `checked_criteria_ids` doesn't cover every active eligibility criterion |

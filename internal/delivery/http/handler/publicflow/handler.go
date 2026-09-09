@@ -120,6 +120,8 @@ func mapError(c *gin.Context, err error) {
 		fail(c, http.StatusUnprocessableEntity, "INVALID_ATTEMPTS", err.Error())
 	case errors.Is(err, publicflow.ErrIncomplete):
 		fail(c, http.StatusBadRequest, "INCOMPLETE_SESSION", err.Error())
+	case errors.Is(err, publicflow.ErrEligibilityNotConfirmed):
+		fail(c, http.StatusUnprocessableEntity, "ELIGIBILITY_NOT_CONFIRMED", err.Error())
 	case errors.Is(err, respRepo.ErrNotFound):
 		fail(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
 	default:

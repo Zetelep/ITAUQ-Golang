@@ -9,6 +9,8 @@ CREATE TABLE public.profiles (
   institution text,
   roles USER-DEFINED NOT NULL DEFAULT 'administrator'::user_role,
   application_id uuid UNIQUE,
+  must_change_password boolean NOT NULL DEFAULT true,
+  is_active boolean DEFAULT true,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT profiles_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.administrator_applications(id)
@@ -108,4 +110,23 @@ CREATE TABLE public.sus_answers (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT sus_answers_pkey PRIMARY KEY (id),
   CONSTRAINT sus_answers_respondent_id_fkey FOREIGN KEY (respondent_id) REFERENCES public.respondents(id)
+);
+CREATE TABLE public.questionnaire_eligibility_criteria (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  questionnaire_id uuid NOT NULL,
+  statement text NOT NULL,
+  criteria_order integer NOT NULL DEFAULT 1,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT questionnaire_eligibility_criteria_pkey PRIMARY KEY (id),
+  CONSTRAINT questionnaire_eligibility_criteria_questionnaire_id_fkey FOREIGN KEY (questionnaire_id) REFERENCES public.questionnaires(id)
+);
+CREATE TABLE public.respondent_eligibility_confirmations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  respondent_id uuid NOT NULL,
+  criteria_id uuid NOT NULL,
+  is_checked boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT respondent_eligibility_confirmations_pkey PRIMARY KEY (id),
+  CONSTRAINT respondent_eligibility_confirmations_respondent_id_fkey FOREIGN KEY (respondent_id) REFERENCES public.respondents(id),
+  CONSTRAINT respondent_eligibility_confirmations_criteria_id_fkey FOREIGN KEY (criteria_id) REFERENCES public.questionnaire_eligibility_criteria(id)
 );

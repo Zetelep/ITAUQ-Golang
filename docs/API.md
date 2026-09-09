@@ -15,11 +15,15 @@
 - [Authentication](#authentication)
 - [Endpoints](#endpoints)
   - [Applications](#1-applications)
-  - [Questionnaires](#2-questionnaires)
-  - [Task Scenarios](#3-task-scenarios)
-  - [Evaluation Links](#4-evaluation-links)
-  - [Public Respondent Flow](#5-public-respondent-flow)
-  - [ITAUQ Instrument](#6-itauq-instrument)
+  - [Profile & First-login Password Change](#2-profile--first-login-password-change)
+  - [Administrators (Account Management)](#3-administrators-account-management)
+  - [Questionnaires](#4-questionnaires)
+  - [Task Scenarios](#5-task-scenarios)
+  - [Eligibility Criteria (Terms & Conditions Checklist)](#5b-eligibility-criteria-terms--conditions-checklist)
+  - [Evaluation Links](#6-evaluation-links)
+  - [Public Respondent Flow](#7-public-respondent-flow)
+  - [ITAUQ Instrument](#8-itauq-instrument)
+  - [Evaluation Results & Reports](#9-evaluation-results--reports)
 - [Database Schema](#database-schema)
 - [Error Codes](#error-codes)
 
@@ -289,7 +293,242 @@ Reject an application.
 
 ---
 
-### 2. Questionnaires
+### 2. Profile & First-login Password Change
+
+Self-service profile read/update and the forced-password-change flow used the first time a newly provisioned administrator logs in.
+
+#### `GET /profiles/me`
+
+Returns the caller's own profile row. The frontend should call this immediately after sign-in; if `must_change_password` is `true`, the user must be sent to the change-password screen and prevented from navigating until `POST /auth/change-password` succeeds.
+
+**Auth:** Administrator or Super Admin (Bearer JWT)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "full_name": "Siti Aminah",
+    "occupation": "Dosen",
+    "institution": "Universitas ABC",
+    "role": "administrator",
+    "must_change_password": true,
+    "created_at": "2026-08-21T10:30:00Z"
+  }
+}
+```
+
+**Errors:**
+- `401 UNAUTHORIZED` - Missing/invalid JWT
+- `404 NOT_FOUND` - Profile row missing for the JWT subject
+
+---
+
+#### `PATCH /profiles/me`
+
+Edit the caller's own profile. Only `full_name` is editable here; `role` is Super-Admin-controlled via `/administrators` and email is tied to the Supabase Auth identity.
+
+**Auth:** Administrator or Super Admin (Bearer JWT)
+
+**Request Body:**
+```json
+{ "full_name": "Siti Aminah Putri" }
+```
+
+**Response (200 OK):** the updated profile (same shape as `GET /profiles/me`).
+
+**Errors:**
+- `400 VALIDATION_ERROR` - `full_name` is blank or any other field was supplied
+
+---
+
+#### `POST /auth/change-password`
+
+Rotates the caller's password via Supabase's admin API (service role) and clears `must_change_password` so the frontend can release navigation. `current_password` is informational — the backend does not verify it because identity is established by the JWT.
+
+**Auth:** Administrator or Super Admin (Bearer JWT)
+
+**Request Body:**
+```json
+{
+  "current_password": "12345678",
+  "new_password": "newSecret!9"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `current_password` | string | No | Previous password (informational, not validated). |
+| `new_password` | string | Yes | New password, minimum 8 characters. |
+
+**Response (200 OK):**
+```json
+{ "success": true, "data": { "message": "password updated" } }
+```
+
+**Errors:**
+- `400 VALIDATION_ERROR` - `new_password` shorter than 8 characters
+- `400 PASSWORD_UPDATE_FAILED` - Supabase admin update rejected (e.g. weak password)
+
+---
+
+### 3. Administrators (Account Management)
+
+Super Admin manages administrator accounts (`profiles` rows where `role = administrator`). The `/profiles/me` endpoints above are for an administrator editing their *own* profile; this section is for Super Admin acting on other people's accounts.
+
+#### `GET /administrators`
+
+List all administrator accounts.
+
+**Auth:** Super Admin only
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `is_active` | bool | Filter by active state (`true` / `false`) |
+| `page` | int | Page number (default: 1) |
+| `page_size` | int | Items per page (default: 20) |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      "full_name": "Siti Aminah",
+      "email": "siti@example.com",
+      "institution": "Universitas ABC",
+      "occupation": "Dosen",
+      "role": "administrator",
+      "is_active": true,
+      "must_change_password": false,
+      "application_id": "550e8400-e29b-41d4-a716-446655440000",
+      "created_at": "2026-08-01T08:00:00Z"
+    }
+  ],
+  "meta": { "page": 1, "page_size": 20, "total": 1, "total_pages": 1 }
+}
+```
+
+---
+
+#### `GET /administrators/:id`
+
+Get a single administrator account by id.
+
+**Auth:** Super Admin only
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "full_name": "Siti Aminah",
+    "email": "siti@example.com",
+    "role": "administrator",
+    "is_active": true,
+    "must_change_password": false,
+    "created_at": "2026-08-01T08:00:00Z"
+  }
+}
+```
+
+**Errors:**
+- `404 NOT_FOUND` - Administrator not found
+
+---
+
+#### `POST /administrators`
+
+Direct account creation, bypassing the application flow. Useful for Super Admin onboarding staff directly. Sends an invite email via Supabase Auth (the new administrator then sets their password through Supabase's own flow).
+
+**Auth:** Super Admin only
+
+**Request Body:**
+```json
+{
+  "full_name": "Rudi Hartono",
+  "email": "rudi@example.com"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `full_name` | string | Yes | Full name |
+| `email` | string | Yes | Valid email address |
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff",
+    "full_name": "Rudi Hartono",
+    "email": "rudi@example.com",
+    "role": "administrator",
+    "is_active": true,
+    "must_change_password": true,
+    "application_id": null,
+    "created_at": "2026-08-22T09:00:00Z"
+  }
+}
+```
+
+**Errors:**
+- `400 VALIDATION_ERROR` - Missing/invalid `full_name` or `email`
+- `502 INVITE_FAILED` - Supabase admin invite failed (e.g. duplicate email)
+
+---
+
+#### `PATCH /administrators/:id`
+
+Update an administrator's `full_name` or activate/deactivate the account. Activation is preferred over hard delete to preserve referential history of their questionnaires/respondents.
+
+**Auth:** Super Admin only
+
+**Request Body (any subset):**
+```json
+{
+  "full_name": "Siti Aminah Putri",
+  "is_active": false
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "full_name": "Siti Aminah Putri",
+    "email": "siti@example.com",
+    "is_active": false,
+    "created_at": "2026-08-01T08:00:00Z"
+  }
+}
+```
+
+**Errors:**
+- `400 VALIDATION_ERROR` - Blank `full_name`
+- `404 NOT_FOUND` - Administrator not found
+
+---
+
+#### `DELETE /administrators/:id`
+
+Hard delete (cascades to that administrator's questionnaires, task scenarios, evaluation links, and respondents — see schema `ON DELETE CASCADE`). Prefer `PATCH { "is_active": false }` unless the account must be fully purged.
+
+**Auth:** Super Admin only · **Response:** `204 No Content`
+
+**Errors:**
+- `404 NOT_FOUND` - Administrator not found
+
+---
+
+### 4. Questionnaires
 
 Evaluation projects for applications. Each questionnaire contains ITAUQ questions and task scenarios.
 
@@ -480,7 +719,7 @@ Delete a questionnaire and all related data (cascades to task scenarios).
 
 ---
 
-### 3. Task Scenarios
+### 5. Task Scenarios
 
 Tasks that respondents must complete during evaluation. Nested under questionnaires.
 
@@ -655,7 +894,157 @@ Delete a task scenario.
 
 ---
 
-### 4. Evaluation Links
+### 5b. Eligibility Criteria (Terms & Conditions Checklist)
+
+Administrator-defined statements (e.g. domicile, citizenship, age group) that a respondent must tick before being allowed to fill in their identity on `POST /public/evaluation/:token/respondents`. Unlike the fixed ITAUQ / SUS instruments, criteria are stored in the database and managed per questionnaire. See `questionnaire_eligibility_criteria` and `respondent_eligibility_confirmations` in the schema.
+
+If a questionnaire has **zero** criteria, the public-flow gate is skipped entirely (backward-compatible with legacy links). If it has at least one, every active criterion must appear in the respondent's `checked_criteria_ids` — partial coverage is rejected with `422 ELIGIBILITY_NOT_CONFIRMED`.
+
+Nested under questionnaires for list/create; top-level for get/update/delete by criterion ID.
+
+---
+
+#### `POST /questionnaires/:id/eligibility-criteria`
+
+Create a new eligibility statement under a questionnaire.
+
+**Auth:** Administrator (must own the questionnaire)
+
+**URL Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | uuid | Questionnaire ID |
+
+**Request Body:**
+```json
+{
+  "statement": "Saya berdomisili di Kota Banjarbaru",
+  "criteria_order": 1
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `statement` | string | Yes | The statement the respondent must confirm |
+| `criteria_order` | int | No | Display order (default: 0) |
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ee0e8400-e29b-41d4-a716-446655440000",
+    "questionnaire_id": "660e8400-e29b-41d4-a716-446655440000",
+    "statement": "Saya berdomisili di Kota Banjarbaru",
+    "criteria_order": 1,
+    "created_at": "2026-08-25T08:00:00Z"
+  }
+}
+```
+
+**Errors:**
+- `400 VALIDATION_ERROR` - Blank `statement`
+- `403 FORBIDDEN` - Not authorized to access this questionnaire
+- `404 NOT_FOUND` - Questionnaire not found
+
+---
+
+#### `GET /questionnaires/:id/eligibility-criteria`
+
+List all eligibility criteria for a questionnaire, ordered by `criteria_order` then creation time.
+
+**Auth:** Owning Administrator or Super Admin
+
+**URL Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | uuid | Questionnaire ID |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "ee0e8400-e29b-41d4-a716-446655440000",
+      "questionnaire_id": "660e8400-e29b-41d4-a716-446655440000",
+      "statement": "Saya berdomisili di Kota Banjarbaru",
+      "criteria_order": 1,
+      "created_at": "2026-08-25T08:00:00Z"
+    },
+    {
+      "id": "ff0e8400-e29b-41d4-a716-446655440000",
+      "questionnaire_id": "660e8400-e29b-41d4-a716-446655440000",
+      "statement": "Saya berusia 18-25 tahun",
+      "criteria_order": 2,
+      "created_at": "2026-08-25T08:01:00Z"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `403 FORBIDDEN` - Not authorized to access this questionnaire
+- `404 NOT_FOUND` - Questionnaire not found
+
+---
+
+#### `GET /eligibility-criteria/:id`
+
+Get a single eligibility criterion by ID.
+
+**Auth:** Owning Administrator (via parent questionnaire) or Super Admin
+
+**Response (200 OK):** the criterion object (same shape as the create response).
+
+**Errors:**
+- `404 NOT_FOUND` - Criterion not found
+
+---
+
+#### `PATCH /eligibility-criteria/:id`
+
+Update an eligibility criterion (partial update). Ownership is resolved via the criterion's parent questionnaire.
+
+**Auth:** Owning Administrator
+
+**Request Body (any subset):**
+```json
+{
+  "statement": "Saya berdomisili di Kota Banjarbaru atau Martapura",
+  "criteria_order": 1
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `statement` | string | New statement |
+| `criteria_order` | int | New display order |
+
+**Response (200 OK):** the updated criterion (same shape as the create response).
+
+**Errors:**
+- `400 VALIDATION_ERROR` - Blank `statement` after trim
+- `403 FORBIDDEN` - Not the owning administrator
+- `404 NOT_FOUND` - Criterion not found
+
+---
+
+#### `DELETE /eligibility-criteria/:id`
+
+Delete an eligibility criterion. Confirmation rows referencing the criterion are removed by `ON DELETE CASCADE` from the criterion.
+
+**Auth:** Owning Administrator
+
+**Response:** `204 No Content`
+
+**Errors:**
+- `403 FORBIDDEN` - Not the owning administrator
+- `404 NOT_FOUND` - Criterion not found
+
+---
+
+### 6. Evaluation Links
 
 Public links that let respondents access a questionnaire without logging in. Nested under questionnaires for list/create; top-level for update/delete by link ID.
 
@@ -810,7 +1199,7 @@ Delete an evaluation link.
 
 ---
 
-### 5. Public Respondent Flow
+### 7. Public Respondent Flow
 
 Anonymous, token-gated flow used by respondents filling out an evaluation. No JWT, no login — each request is identified by the short `token` embedded in the evaluation URL, and after starting a session by the `respondent_id` returned in step 2. The backend uses the service-role DB connection (no public Supabase policies are defined for `respondents`/`answers`).
 
@@ -834,6 +1223,18 @@ Loads everything the respondent-facing app needs to render the flow.
       "title": "Evaluasi Usability App Wisata Kalsel",
       "app_name": "WisataKu"
     },
+    "eligibility_criteria": [
+      {
+        "id": "ee0e8400-e29b-41d4-a716-446655440000",
+        "statement": "Saya berdomisili di Kota Banjarbaru",
+        "criteria_order": 1
+      },
+      {
+        "id": "ff0e8400-e29b-41d4-a716-446655440000",
+        "statement": "Saya berusia 18-25 tahun",
+        "criteria_order": 2
+      }
+    ],
     "task_scenarios": [
       {
         "id": "770e8400-e29b-41d4-a716-446655440000",
@@ -862,6 +1263,8 @@ Loads everything the respondent-facing app needs to render the flow.
 
 The 30 ITAUQ items come from the embedded `pkg/itauq/itauq.json` (compiled into the binary, no runtime file dependency). The `{AppName}` placeholder is substituted with `questionnaire.app_name` before the response is returned.
 
+`eligibility_criteria` is empty (`[]`) when the questionnaire has no active terms; the respondent UI should hide the checklist screen entirely in that case.
+
 **Errors:**
 - `404 NOT_FOUND` - Unknown token
 - `409 LINK_INACTIVE` - Link is `is_active = false` or past its `expires_at`
@@ -870,7 +1273,7 @@ The 30 ITAUQ items come from the embedded `pkg/itauq/itauq.json` (compiled into 
 
 #### `POST /public/evaluation/:token/respondents`
 
-Starts a respondent session for this evaluation link.
+Starts a respondent session for this evaluation link. If the questionnaire has any active eligibility criteria, the respondent must submit `checked_criteria_ids` covering every one of them — partial coverage is rejected before the respondent row is even created.
 
 **Auth:** none
 
@@ -881,7 +1284,11 @@ Starts a respondent session for this evaluation link.
   "email": "ahmad@example.com",
   "age": 22,
   "gender": "male",
-  "occupation": "Mahasiswa"
+  "occupation": "Mahasiswa",
+  "checked_criteria_ids": [
+    "ee0e8400-e29b-41d4-a716-446655440000",
+    "ff0e8400-e29b-41d4-a716-446655440000"
+  ]
 }
 ```
 
@@ -892,6 +1299,7 @@ Starts a respondent session for this evaluation link.
 | `age` | integer | No | Age (must be ≥ 0) |
 | `gender` | string | No | `male`, `female`, or `other` |
 | `occupation` | string | No | Job/role |
+| `checked_criteria_ids` | uuid[] | Conditional | The IDs of the criteria the respondent has confirmed. Required only when the questionnaire has at least one active criterion; ignored otherwise. Each ID must be a criterion of the questionnaire, and the union must cover every active criterion (extra stale IDs are tolerated). |
 
 **Response (201 Created):**
 ```json
@@ -908,6 +1316,7 @@ Starts a respondent session for this evaluation link.
 - `400 VALIDATION_ERROR` - `name` empty, `age` negative, or `gender` not in the allowed set
 - `404 NOT_FOUND` - Unknown token
 - `409 LINK_INACTIVE` - Link is inactive or expired
+- `422 ELIGIBILITY_NOT_CONFIRMED` - `checked_criteria_ids` does not cover every active criterion for the questionnaire. Nothing is written (no respondent row, no confirmations).
 
 ---
 
@@ -1087,7 +1496,7 @@ Finalizes the session. The backend verifies that the respondent has submitted al
 
 ---
 
-### 6. ITAUQ Instrument
+### 8. ITAUQ Instrument
 
 The fixed 30-question instrument bundled with the backend (`pkg/itauq/itauq.json`, compiled into the binary). The same instrument is reused internally by `GET /public/evaluation/:token`, so changes here flow through to the respondent flow without redeploying any data.
 
@@ -1152,6 +1561,154 @@ Notes:
 
 ---
 
+### 9. Evaluation Results & Reports
+
+Read-only views over submitted evaluation sessions. Scores are computed server-side from the raw `questionnaire_answers`, `sus_answers`, and `task_scenario_attempts` rows — there is no separate "computed" table to keep in sync.
+
+**ITAUQ scoring.** Each of the 30 ITAUQ items belongs to one of 10 categories (3 items per category). For one respondent:
+
+1. Per-category raw score = mean of the 3 item scores in that category (the `Skor Variabel` formula).
+2. Per-category normalized score = `(raw - scale_min) / (scale_max - scale_min) * 100` (so a 1–7 Likert maps to 0–100).
+3. Overall usability score = the mean of the per-category normalized scores, reported on the 0–100 scale.
+
+**SUS scoring.** The standard System Usability Scale formula: for each of the 10 items, positive-polarity items contribute `(score - 1)` and negative-polarity items contribute `(5 - score)`; the final SUS score is the sum of contributions multiplied by 2.5, on the 0–100 scale.
+
+#### `GET /respondents`
+
+List respondents with their computed scores. Scope is enforced server-side from the caller's role:
+
+- **Administrator** → only respondents of their own questionnaires ("View Own Evaluation Result"). Any `administrator_id` query param is ignored.
+- **Super Admin** → all respondents across all administrators ("View All Evaluation Result"); `administrator_id` and `questionnaire_id` filters apply.
+
+**Auth:** Administrator or Super Admin (Bearer JWT)
+
+**Query Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `questionnaire_id` | uuid | Optional. Restrict to one questionnaire. |
+| `administrator_id` | uuid | Optional, Super Admin only. Restrict to one administrator. |
+| `page` | int | Page number (default: 1) |
+| `page_size` | int | Items per page (default: 20, max: 100) |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "respondent_id": "bb0e8400-e29b-41d4-a716-446655440000",
+      "respondent_name": "Ahmad",
+      "questionnaire_title": "Evaluasi Usability App Wisata Kalsel",
+      "app_name": "WisataKu",
+      "administrator_name": "Siti Aminah",
+      "overall_usability_score": 82.14,
+      "task_success_rate_pct": 100.0,
+      "evaluation_website_sus_score": 77.5,
+      "submitted_at": "2026-08-23T10:15:00Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+Score fields are nullable: an Administrator viewing a respondent who has not yet submitted will see `null` for `overall_usability_score`, `task_success_rate_pct`, and `evaluation_website_sus_score`. Super Admin sees the same behavior.
+
+**Errors:**
+- `401 UNAUTHORIZED` - Missing/invalid JWT
+- `403 FORBIDDEN` - JWT does not resolve to an administrator or super_admin role
+
+---
+
+#### `GET /respondents/:id`
+
+Full per-respondent detail: identity, per-category ITAUQ scores, per-task results, and the SUS score for the evaluation website.
+
+**Auth:** Owning Administrator (via the respondent's questionnaire) or Super Admin
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "respondent": {
+      "id": "bb0e8400-e29b-41d4-a716-446655440000",
+      "name": "Ahmad",
+      "age": 22,
+      "gender": "male",
+      "occupation": "Mahasiswa"
+    },
+    "overall_usability_score": 82.14,
+    "category_scores": [
+      { "category": "Attractiveness", "avg_raw_score": 6.33, "normalized_score": 88.89 },
+      { "category": "Efficiency", "avg_raw_score": 5.67, "normalized_score": 77.78 }
+    ],
+    "task_results": [
+      {
+        "task_scenario_id": "770e8400-e29b-41d4-a716-446655440000",
+        "title": "Mencari destinasi wisata terdekat",
+        "is_success": true,
+        "duration_seconds": 42
+      }
+    ],
+    "evaluation_website_sus": {
+      "answered_items": 10,
+      "sus_score": 77.5
+    }
+  }
+}
+```
+
+`is_success` is `null` if the respondent skipped that scenario; `sus_score` is `null` if fewer than 10 SUS items were answered.
+
+**Errors:**
+- `401 UNAUTHORIZED` - Missing/invalid JWT
+- `403 FORBIDDEN` - Caller is an administrator who does not own this respondent's questionnaire
+- `404 NOT_FOUND` - Unknown respondent id
+
+---
+
+#### `GET /questionnaires/:id/report`
+
+Aggregate report across **all** respondents of one questionnaire — the "Generate Evaluation Report" output.
+
+**Auth:** Owning Administrator or Super Admin
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "questionnaire": {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "title": "Evaluasi Usability App Wisata Kalser",
+      "app_name": "WisataKu"
+    },
+    "respondent_count": 12,
+    "overall_usability_score_avg": 79.4,
+    "category_averages": [
+      { "category": "Attractiveness", "normalized_score_avg": 85.1 },
+      { "category": "Trust", "normalized_score_avg": 71.3 }
+    ],
+    "task_success_rate_avg": 91.7,
+    "evaluation_website_sus_score_avg": 76.8
+  }
+}
+```
+
+`respondent_count` counts every respondent for the questionnaire (started and submitted). Average fields are nullable when no respondent has data for that metric yet. Each `category_averages[].normalized_score_avg` is the mean of the per-respondent normalized scores for that category.
+
+**Errors:**
+- `401 UNAUTHORIZED` - Missing/invalid JWT
+- `403 FORBIDDEN` - Caller is an administrator who does not own this questionnaire
+- `404 NOT_FOUND` - Unknown questionnaire id
+
+---
+
 ## Database Schema
 
 ### Tables
@@ -1180,6 +1737,8 @@ Notes:
 | `institution` | text | Organization |
 | `roles` | enum | `administrator`, `super_admin` |
 | `application_id` | uuid | FK to administrator_applications |
+| `must_change_password` | boolean | Forces first-login password rotation |
+| `is_active` | boolean | Set to `false` to deactivate an administrator account |
 | `created_at` | timestamp | Creation time |
 
 #### `questionnaires`
@@ -1204,6 +1763,24 @@ Notes:
 | `instruction` | text | Task instructions |
 | `task_order` | integer | Display order |
 | `created_at` | timestamp | Creation time |
+
+#### `questionnaire_eligibility_criteria`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `questionnaire_id` | uuid | FK to questionnaires (CASCADE on delete) |
+| `statement` | text | The eligibility statement the respondent must confirm |
+| `criteria_order` | integer | Display order |
+| `created_at` | timestamp | Creation time |
+
+#### `respondent_eligibility_confirmations`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `respondent_id` | uuid | FK to respondents |
+| `criteria_id` | uuid | FK to questionnaire_eligibility_criteria |
+| `is_checked` | boolean | Whether the respondent ticked this criterion (default: true) |
+| `created_at` | timestamp | Tick timestamp |
 
 #### `evaluation_links`
 | Column | Type | Description |
@@ -1278,6 +1855,8 @@ Notes:
 | `INVALID_ANSWERS` | 422 | One or more answers fail ITAUQ instrument validation (unknown `item_id`, mismatched `category`, or `score` outside `[1, 7]`) |
 | `INVALID_SUS_ANSWERS` | 422 | One or more SUS answers fail instrument validation (unknown `item_id` or `score` outside `[1, 5]`) |
 | `INVALID_ATTEMPTS` | 422 | One or more task attempts reference a `task_scenario_id` outside the questionnaire |
+| `ELIGIBILITY_NOT_CONFIRMED` | 422 | `checked_criteria_ids` does not cover every active eligibility criterion for the questionnaire |
+| `INVITE_FAILED` | 502 | Supabase admin invite to create an Auth user failed |
 | `INTERNAL_ERROR` | 500 | Unhandled server error |
 
 ---
@@ -1301,6 +1880,11 @@ Notes:
 | `GET /task-scenarios/:id` | ✅ | ✅ (own) | - |
 | `PATCH /task-scenarios/:id` | - | ✅ (own) | - |
 | `DELETE /task-scenarios/:id` | - | ✅ (own) | - |
+| `POST /questionnaires/:id/eligibility-criteria` | - | ✅ (own) | - |
+| `GET /questionnaires/:id/eligibility-criteria` | ✅ | ✅ (own) | - |
+| `GET /eligibility-criteria/:id` | ✅ | ✅ (own) | - |
+| `PATCH /eligibility-criteria/:id` | - | ✅ (own) | - |
+| `DELETE /eligibility-criteria/:id` | - | ✅ (own) | - |
 | `POST /questionnaires/:id/evaluation-links` | - | ✅ (own) | - |
 | `GET /questionnaires/:id/evaluation-links` | ✅ | ✅ (own) | - |
 | `PATCH /evaluation-links/:id` | - | ✅ (own) | - |
@@ -1308,6 +1892,9 @@ Notes:
 | `GET /public/evaluation/:token` | - | - | ✅ |
 | `GET /instruments/itauq` | ✅ | ✅ | - |
 | `GET /instruments/sus` | ✅ | ✅ | - |
+| `GET /respondents` | ✅ (all) | ✅ (own) | - |
+| `GET /respondents/:id` | ✅ | ✅ (own) | - |
+| `GET /questionnaires/:id/report` | ✅ | ✅ (own) | - |
 | `POST /public/evaluation/:token/respondents` | - | - | ✅ |
 | `POST /public/evaluation/:token/respondents/:respondent_id/task-attempts` | - | - | ✅ |
 | `POST /public/evaluation/:token/respondents/:respondent_id/answers` | - | - | ✅ |
@@ -1350,16 +1937,21 @@ DATABASE_URL="postgresql://..." go run cmd/api/main.go
 Import the provided Postman collections:
 - `postman_questionnaires.json` - Questionnaire CRUD tests
 - `postman_task_scenarios.json` - Task scenario CRUD tests
+- `postman_eligibility_criteria.json` - Eligibility criterion CRUD tests (Terms & Conditions checklist)
 - `postman_evaluation_links.json` - Evaluation link CRUD tests
 - `postman_public_flow.json` - Public respondent flow (anonymous, end-to-end evaluation session)
+- `postman_evaluation_results.json` - Evaluation Results & Reports (authenticated list / detail / report)
 
-> The public-flow collection bootstraps its own questionnaire + task scenarios + evaluation link in the **Prerequisites** folder. Run it first to populate the variables (`questionnaire_id`, `task_scenario_id_1`, `task_scenario_id_2`, `evaluation_link_token`, `evaluation_link_id`, `respondent_id`), then the rest of the collection exercises the five public endpoints and their error cases.
+> The public-flow collection bootstraps its own questionnaire + task scenarios + eligibility criteria + evaluation link in the **Prerequisites** folder. Run it first to populate the variables (`questionnaire_id`, `task_scenario_id_1`, `task_scenario_id_2`, `eligibility_criterion_id_1`, `eligibility_criterion_id_2`, `evaluation_link_token`, `evaluation_link_id`, `respondent_id`), then the rest of the collection exercises the public endpoints and their error cases. The `POST .../respondents` step in the public flow now requires `checked_criteria_ids` covering the two prereq criteria.
+
+The `postman_evaluation_results.json` collection reuses the same variables from `postman_public_flow.json` (it expects a `questionnaire_id` and `respondent_id` to already exist), then exercises `GET /respondents`, `GET /respondents/:id`, and `GET /questionnaires/:id/report`.
 
 Set collection variables:
 - `base_url`: `http://localhost:8080`
 - `admin_id`: Your administrator UUID
 - `questionnaire_id`: Set automatically by test scripts
 - `task_scenario_id`: Set automatically by test scripts
+- `eligibility_criterion_id`: Set automatically by test scripts
 - `evaluation_link_id`: Set automatically by test scripts
 - `respondent_id`: Set automatically by the public-flow collection after the `POST .../respondents` step
 
@@ -1374,16 +1966,19 @@ internal/
     application/                # Application domain
     questionnaire/              # Questionnaire domain
     taskscenario/               # Task scenario domain
+    eligibility/                # Eligibility criterion domain
     evaluationlink/             # Evaluation link domain
   repository/                   # Data access layer
     application/                # In-memory + PostgreSQL
     questionnaire/              # In-memory + PostgreSQL
     taskscenario/               # In-memory + PostgreSQL
+    eligibility/                # In-memory + PostgreSQL
     evaluationlink/             # In-memory + PostgreSQL
   usecase/                      # Business logic
     application/                # Application use cases
     questionnaire/              # Questionnaire use cases
     taskscenario/               # Task scenario use cases
+    eligibility/                # Eligibility criterion use cases
     evaluationlink/             # Evaluation link use cases
   delivery/http/                # HTTP layer
     handler/                    # Request handlers
@@ -1404,9 +1999,4 @@ pkg/                            # Shared utilities
 
 ## Planned Endpoints (Not Yet Implemented)
 
-The following endpoints are specified in `API_SPECIFICATION.md` but not yet implemented:
-
-- **Profiles:** `GET/PATCH /profiles/me`
-- **Administrators:** `GET/POST/PATCH/DELETE /administrators`
-- **ITAUQ Instrument:** ~~`GET /instruments/itauq`~~ (implemented, see [§6](#6-itauq-instrument))
-- **Evaluation Results:** `GET /respondents`, `GET /questionnaires/{id}/report`
+All endpoints in `API_SPECIFICATION.md` are now implemented.

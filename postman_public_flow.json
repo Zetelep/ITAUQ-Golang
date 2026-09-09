@@ -9,6 +9,8 @@
     { "key": "questionnaire_id", "value": "" },
     { "key": "task_scenario_id_1", "value": "" },
     { "key": "task_scenario_id_2", "value": "" },
+    { "key": "eligibility_criterion_id_1", "value": "" },
+    { "key": "eligibility_criterion_id_2", "value": "" },
     { "key": "evaluation_link_token", "value": "" },
     { "key": "evaluation_link_id", "value": "" },
     { "key": "respondent_id", "value": "" }
@@ -108,7 +110,67 @@
           ]
         },
         {
-          "name": "0d. Create Evaluation Link",
+          "name": "0d. Create Eligibility Criterion #1",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/eligibility-criteria",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statement\": \"Saya berdomisili di Kota Banjarbaru\",\n  \"criteria_order\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('eligibility_criterion_id_1', json.data.id);",
+                  "  console.log('Saved eligibility_criterion_id_1:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0e. Create Eligibility Criterion #2",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/eligibility-criteria",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statement\": \"Saya berusia 18-25 tahun\",\n  \"criteria_order\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('eligibility_criterion_id_2', json.data.id);",
+                  "  console.log('Saved eligibility_criterion_id_2:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0f. Create Evaluation Link",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/evaluation-links",
@@ -165,6 +227,11 @@
               "  pm.expect(json.data.questionnaire).to.be.an('object');",
               "  pm.expect(json.data.questionnaire.app_name).to.eql('WisataKu');",
               "});",
+              "pm.test('Has eligibility_criteria (2, in order)', function () {",
+              "  pm.expect(json.data.eligibility_criteria).to.be.an('array').with.lengthOf(2);",
+              "  pm.expect(json.data.eligibility_criteria[0].criteria_order).to.eql(1);",
+              "  pm.expect(json.data.eligibility_criteria[1].criteria_order).to.eql(2);",
+              "});",
               "pm.test('Has task scenarios', function () {",
               "  pm.expect(json.data.task_scenarios).to.be.an('array').with.lengthOf(2);",
               "});",
@@ -194,7 +261,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Ahmad\",\n  \"email\": \"ahmad@example.com\",\n  \"age\": 22,\n  \"gender\": \"male\",\n  \"occupation\": \"Mahasiswa\"\n}"
+          "raw": "{\n  \"name\": \"Ahmad\",\n  \"email\": \"ahmad@example.com\",\n  \"age\": 22,\n  \"gender\": \"male\",\n  \"occupation\": \"Mahasiswa\",\n  \"checked_criteria_ids\": [\"{{eligibility_criterion_id_1}}\", \"{{eligibility_criterion_id_2}}\"]\n}"
         }
       },
       "event": [
@@ -218,7 +285,7 @@
       ]
     },
     {
-      "name": "2b. Start Respondent (minimal — name only)",
+      "name": "2b. Start Respondent (minimal — name only, with criteria ticked)",
       "request": {
         "method": "POST",
         "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
@@ -227,7 +294,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Siti\"\n}"
+          "raw": "{\n  \"name\": \"Siti\",\n  \"checked_criteria_ids\": [\"{{eligibility_criterion_id_1}}\", \"{{eligibility_criterion_id_2}}\"]\n}"
         }
       },
       "event": [
@@ -397,6 +464,62 @@
               "script": {
                 "exec": [
                   "pm.test('Status is 400', function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Start respondent without ticking all criteria (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Budi\",\n  \"checked_criteria_ids\": [\"{{eligibility_criterion_id_1}}\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code ELIGIBILITY_NOT_CONFIRMED', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('ELIGIBILITY_NOT_CONFIRMED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: Start respondent without checked_criteria_ids (expect 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rina\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', function () { pm.response.to.have.status(422); });",
+                  "pm.test('Error code ELIGIBILITY_NOT_CONFIRMED', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('ELIGIBILITY_NOT_CONFIRMED');",
+                  "});"
                 ]
               }
             }

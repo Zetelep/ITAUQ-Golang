@@ -1,0 +1,590 @@
+{
+  "info": {
+    "name": "ITAUQ - Evaluation Results & Reports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "admin_id", "value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" },
+    { "key": "super_admin_id", "value": "00000000-0000-0000-0000-000000000001" },
+    { "key": "questionnaire_id", "value": "" },
+    { "key": "respondent_id", "value": "" },
+    { "key": "page_size", "value": "20" }
+  ],
+  "item": [
+    {
+      "name": "Prerequisites",
+      "item": [
+        {
+          "name": "0a. Fetch Public Evaluation (verify link is live)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.questionnaire && json.data.questionnaire.id) {",
+                  "  pm.collectionVariables.set('questionnaire_id', json.data.questionnaire.id);",
+                  "  console.log('Saved questionnaire_id:', json.data.questionnaire.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0b. Start Respondent (Ahmad)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ahmad\",\n  \"email\": \"ahmad@example.com\",\n  \"age\": 22,\n  \"gender\": \"male\",\n  \"occupation\": \"Mahasiswa\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Has respondent_id', function () {",
+                  "  pm.expect(json.data.respondent_id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (json.data && json.data.respondent_id) {",
+                  "  pm.collectionVariables.set('respondent_id', json.data.respondent_id);",
+                  "  console.log('Saved respondent_id:', json.data.respondent_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0c. Submit full ITAUQ answers (30 items)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"category\":\"Attractiveness\",\"score\":6},\n    {\"item_id\":2,\"category\":\"Attractiveness\",\"score\":7},\n    {\"item_id\":3,\"category\":\"Attractiveness\",\"score\":5},\n    {\"item_id\":4,\"category\":\"Efficiency\",\"score\":6},\n    {\"item_id\":5,\"category\":\"Efficiency\",\"score\":6},\n    {\"item_id\":6,\"category\":\"Efficiency\",\"score\":5},\n    {\"item_id\":7,\"category\":\"Dependability\",\"score\":7},\n    {\"item_id\":8,\"category\":\"Dependability\",\"score\":6},\n    {\"item_id\":9,\"category\":\"Dependability\",\"score\":5},\n    {\"item_id\":10,\"category\":\"Stimulation\",\"score\":6},\n    {\"item_id\":11,\"category\":\"Stimulation\",\"score\":6},\n    {\"item_id\":12,\"category\":\"Stimulation\",\"score\":5},\n    {\"item_id\":13,\"category\":\"Trust\",\"score\":7},\n    {\"item_id\":14,\"category\":\"Trust\",\"score\":7},\n    {\"item_id\":15,\"category\":\"Trust\",\"score\":6},\n    {\"item_id\":16,\"category\":\"Novelty\",\"score\":5},\n    {\"item_id\":17,\"category\":\"Novelty\",\"score\":5},\n    {\"item_id\":18,\"category\":\"Novelty\",\"score\":6},\n    {\"item_id\":19,\"category\":\"User Satisfaction\",\"score\":7},\n    {\"item_id\":20,\"category\":\"User Satisfaction\",\"score\":7},\n    {\"item_id\":21,\"category\":\"User Satisfaction\",\"score\":6},\n    {\"item_id\":22,\"category\":\"Accessibility\",\"score\":5},\n    {\"item_id\":23,\"category\":\"Accessibility\",\"score\":6},\n    {\"item_id\":24,\"category\":\"Accessibility\",\"score\":5},\n    {\"item_id\":25,\"category\":\"Social Interaction\",\"score\":5},\n    {\"item_id\":26,\"category\":\"Social Interaction\",\"score\":5},\n    {\"item_id\":27,\"category\":\"Social Interaction\",\"score\":6},\n    {\"item_id\":28,\"category\":\"Learnability\",\"score\":7},\n    {\"item_id\":29,\"category\":\"Learnability\",\"score\":7},\n    {\"item_id\":30,\"category\":\"Learnability\",\"score\":6}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Echoed 30 answers', function () {",
+                  "  pm.expect(json.data.answers).to.have.lengthOf(30);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0d. Submit SUS answers (10 items)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/sus-answers",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\"item_id\":1,\"score\":4},\n    {\"item_id\":2,\"score\":2},\n    {\"item_id\":3,\"score\":4},\n    {\"item_id\":4,\"score\":2},\n    {\"item_id\":5,\"score\":4},\n    {\"item_id\":6,\"score\":1},\n    {\"item_id\":7,\"score\":5},\n    {\"item_id\":8,\"score\":2},\n    {\"item_id\":9,\"score\":4},\n    {\"item_id\":10,\"score\":2}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "pm.test('Echoed 10 SUS answers', function () {",
+                  "  pm.expect(json.data.answers).to.have.lengthOf(10);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0e. Submit task attempts",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/task-attempts",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attempts\": [\n    {\"task_scenario_id\":\"{{task_scenario_id_1}}\",\"is_success\":true,\"duration_seconds\":42,\"notes\":\"Mudah dicari\"},\n    {\"task_scenario_id\":\"{{task_scenario_id_2}}\",\"is_success\":true,\"duration_seconds\":75,\"notes\":\"Detail lengkap\"}\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0f. Finalize submission",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/public/evaluation/{{evaluation_link_token}}/respondents/{{respondent_id}}/submit",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. GET /respondents (Administrator view)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/respondents?page=1&page_size={{page_size}}",
+          "host": ["{{base_url}}"],
+          "path": ["respondents"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "page_size", "value": "{{page_size}}" }
+          ]
+        },
+        "header": [
+          { "key": "X-User-ID", "value": "{{admin_id}}" },
+          { "key": "X-User-Role", "value": "administrator" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Returns an array of respondents', function () {",
+              "  pm.expect(json.data).to.be.an('array');",
+              "});",
+              "pm.test('Pagination meta is present', function () {",
+              "  pm.expect(json.meta).to.be.an('object');",
+              "  pm.expect(json.meta.page).to.eql(1);",
+              "  pm.expect(json.meta.page_size).to.eql(Number(pm.collectionVariables.get('page_size')));",
+              "});",
+              "if (json.data && json.data.length > 0) {",
+              "  pm.test('First row has expected shape', function () {",
+              "    var r = json.data[0];",
+              "    pm.expect(r).to.have.property('respondent_id');",
+              "    pm.expect(r).to.have.property('respondent_name');",
+              "    pm.expect(r).to.have.property('questionnaire_title');",
+              "    pm.expect(r).to.have.property('app_name');",
+              "    pm.expect(r).to.have.property('administrator_name');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. GET /respondents (Super Admin view, all administrators)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/respondents?page=1&page_size={{page_size}}",
+          "host": ["{{base_url}}"],
+          "path": ["respondents"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "page_size", "value": "{{page_size}}" }
+          ]
+        },
+        "header": [
+          { "key": "X-User-ID", "value": "{{super_admin_id}}" },
+          { "key": "X-User-Role", "value": "super_admin" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. GET /respondents?questionnaire_id=... (filtered)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/respondents?questionnaire_id={{questionnaire_id}}&page=1&page_size={{page_size}}",
+          "host": ["{{base_url}}"],
+          "path": ["respondents"],
+          "query": [
+            { "key": "questionnaire_id", "value": "{{questionnaire_id}}" },
+            { "key": "page", "value": "1" },
+            { "key": "page_size", "value": "{{page_size}}" }
+          ]
+        },
+        "header": [
+          { "key": "X-User-ID", "value": "{{admin_id}}" },
+          { "key": "X-User-Role", "value": "administrator" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('At least one respondent for this questionnaire', function () {",
+              "  pm.expect(json.data).to.be.an('array').with.lengthOf.at.least(1);",
+              "});",
+              "if (json.data && json.data.length > 0) {",
+              "  pm.test('Overall usability score is set', function () {",
+              "    var r = json.data[0];",
+              "    pm.expect(r.overall_usability_score).to.be.a('number');",
+              "    pm.expect(r.overall_usability_score).to.be.within(0, 100);",
+              "  });",
+              "  pm.test('SUS score is set', function () {",
+              "    pm.expect(json.data[0].evaluation_website_sus_score).to.be.a('number');",
+              "    pm.expect(json.data[0].evaluation_website_sus_score).to.be.within(0, 100);",
+              "  });",
+              "  pm.test('Task success rate is set', function () {",
+              "    pm.expect(json.data[0].task_success_rate_pct).to.be.a('number');",
+              "    pm.expect(json.data[0].task_success_rate_pct).to.be.within(0, 100);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. GET /respondents/:id (Administrator view, detail)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/respondents/{{respondent_id}}",
+        "header": [
+          { "key": "X-User-ID", "value": "{{admin_id}}" },
+          { "key": "X-User-Role", "value": "administrator" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Respondent identity present', function () {",
+              "  pm.expect(json.data.respondent).to.be.an('object');",
+              "  pm.expect(json.data.respondent.id).to.eql(pm.collectionVariables.get('respondent_id'));",
+              "  pm.expect(json.data.respondent.name).to.eql('Ahmad');",
+              "});",
+              "pm.test('10 category scores returned', function () {",
+              "  pm.expect(json.data.category_scores).to.be.an('array').with.lengthOf(10);",
+              "});",
+              "pm.test('Each category has avg_raw_score and normalized_score', function () {",
+              "  json.data.category_scores.forEach(function (c) {",
+              "    pm.expect(c).to.have.property('category');",
+              "    pm.expect(c.avg_raw_score).to.be.a('number');",
+              "    pm.expect(c.normalized_score).to.be.a('number');",
+              "  });",
+              "});",
+              "pm.test('Task results present', function () {",
+              "  pm.expect(json.data.task_results).to.be.an('array');",
+              "  pm.expect(json.data.task_results.length).to.be.at.least(1);",
+              "});",
+              "pm.test('SUS block shows 10 answered items', function () {",
+              "  pm.expect(json.data.evaluation_website_sus.answered_items).to.eql(10);",
+              "  pm.expect(json.data.evaluation_website_sus.sus_score).to.be.a('number');",
+              "  pm.expect(json.data.evaluation_website_sus.sus_score).to.be.within(0, 100);",
+              "});",
+              "pm.test('Overall usability score is in 0..100', function () {",
+              "  pm.expect(json.data.overall_usability_score).to.be.a('number');",
+              "  pm.expect(json.data.overall_usability_score).to.be.within(0, 100);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. GET /respondents/:id (Super Admin view)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/respondents/{{respondent_id}}",
+        "header": [
+          { "key": "X-User-ID", "value": "{{super_admin_id}}" },
+          { "key": "X-User-Role", "value": "super_admin" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. GET /questionnaires/:id/report (Administrator view)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/report",
+        "header": [
+          { "key": "X-User-ID", "value": "{{admin_id}}" },
+          { "key": "X-User-Role", "value": "administrator" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test('Questionnaire header is set', function () {",
+              "  pm.expect(json.data.questionnaire).to.be.an('object');",
+              "  pm.expect(json.data.questionnaire.id).to.eql(pm.collectionVariables.get('questionnaire_id'));",
+              "});",
+              "pm.test('Respondent count is at least 1', function () {",
+              "  pm.expect(json.data.respondent_count).to.be.a('number').at.least(1);",
+              "});",
+              "pm.test('10 category averages returned', function () {",
+              "  pm.expect(json.data.category_averages).to.be.an('array').with.lengthOf(10);",
+              "});",
+              "pm.test('Overall avg in 0..100', function () {",
+              "  pm.expect(json.data.overall_usability_score_avg).to.be.a('number');",
+              "  pm.expect(json.data.overall_usability_score_avg).to.be.within(0, 100);",
+              "});",
+              "pm.test('SUS avg in 0..100', function () {",
+              "  pm.expect(json.data.evaluation_website_sus_score_avg).to.be.a('number');",
+              "  pm.expect(json.data.evaluation_website_sus_score_avg).to.be.within(0, 100);",
+              "});",
+              "pm.test('Task success rate avg in 0..100', function () {",
+              "  pm.expect(json.data.task_success_rate_avg).to.be.a('number');",
+              "  pm.expect(json.data.task_success_rate_avg).to.be.within(0, 100);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. GET /questionnaires/:id/report (Super Admin view)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/report",
+        "header": [
+          { "key": "X-User-ID", "value": "{{super_admin_id}}" },
+          { "key": "X-User-Role", "value": "super_admin" }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "item": [
+        {
+          "name": "Error: GET /respondents with no auth headers (expect 401)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/respondents",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Error code UNAUTHORIZED', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('UNAUTHORIZED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET /respondents with unknown role (expect 403)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/respondents",
+            "header": [
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "guest" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET /respondents/:id with unknown id (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/respondents/00000000-0000-0000-0000-000000000000",
+            "header": [
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Error code NOT_FOUND', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET /respondents/:id as a non-owning administrator (expect 403)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/respondents/{{respondent_id}}",
+            "header": [
+              { "key": "X-User-ID", "value": "ffffffff-ffff-ffff-ffff-ffffffffffff" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Error code FORBIDDEN', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET /questionnaires/:id/report with unknown questionnaire id (expect 404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/questionnaires/00000000-0000-0000-0000-000000000000/report",
+            "header": [
+              { "key": "X-User-ID", "value": "{{admin_id}}" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Error code NOT_FOUND', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Error: GET /questionnaires/:id/report as a non-owning administrator (expect 403)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/questionnaires/{{questionnaire_id}}/report",
+            "header": [
+              { "key": "X-User-ID", "value": "ffffffff-ffff-ffff-ffff-ffffffffffff" },
+              { "key": "X-User-Role", "value": "administrator" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Error code FORBIDDEN', function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.error.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

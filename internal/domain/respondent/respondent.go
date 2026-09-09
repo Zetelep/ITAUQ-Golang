@@ -17,12 +17,16 @@ type Respondent struct {
 }
 
 // StartInput is the payload for POST /public/evaluation/:token/respondents.
+// CheckedCriteriaIDs is the respondent's tick-confirmation for the
+// questionnaire's eligibility criteria; if any active criterion is missing
+// here, the backend rejects the request (see API_SPECIFICATION.md §8).
 type StartInput struct {
-	Name       string  `json:"name" binding:"required"`
-	Email      string  `json:"email"`
-	Age        *int    `json:"age"`
-	Gender     *string `json:"gender"`
-	Occupation string  `json:"occupation"`
+	Name              string   `json:"name" binding:"required"`
+	Email             string   `json:"email"`
+	Age               *int     `json:"age"`
+	Gender            *string  `json:"gender"`
+	Occupation        string   `json:"occupation"`
+	CheckedCriteriaIDs []string `json:"checked_criteria_ids"`
 }
 
 // Attempt is a single task-scenario attempt submitted by a respondent.

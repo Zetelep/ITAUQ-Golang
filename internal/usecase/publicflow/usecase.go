@@ -13,8 +13,10 @@ import (
 	"github.com/google/uuid"
 	domain "github.com/itauq-golang/internal/domain/respondent"
 	elDomain "github.com/itauq-golang/internal/domain/evaluationlink"
+	eligDomain "github.com/itauq-golang/internal/domain/eligibility"
 	qDomain "github.com/itauq-golang/internal/domain/questionnaire"
 	elRepo "github.com/itauq-golang/internal/repository/evaluationlink"
+	eligRepo "github.com/itauq-golang/internal/repository/eligibility"
 	qRepo "github.com/itauq-golang/internal/repository/questionnaire"
 	respRepo "github.com/itauq-golang/internal/repository/respondent"
 	tsRepo "github.com/itauq-golang/internal/repository/taskscenario"
@@ -46,30 +48,36 @@ var (
 	// ErrIncomplete is returned when the respondent tries to finalize without
 	// submitting all required answers/attempts. Maps to HTTP 400.
 	ErrIncomplete = errors.New("respondent session is incomplete")
+	// ErrEligibilityNotConfirmed is returned when the respondent's
+	// checked_criteria_ids does not cover every active criterion for the
+	// questionnaire. Maps to HTTP 422.
+	ErrEligibilityNotConfirmed = errors.New("respondent did not confirm every eligibility criterion")
 )
 
 // Usecase wires together the repos needed to serve the public flow.
 type Usecase struct {
-	elRepo   elRepo.Repository
-	qRepo    qRepo.Repository
-	tsRepo   tsRepo.Repository
-	respRepo respRepo.Repository
-	itauq    *itauq.Loaded
-	sus      *sus.Loaded
+	elRepo    elRepo.Repository
+	qRepo     qRepo.Repository
+	tsRepo    tsRepo.Repository
+	respRepo  respRepo.Repository
+	eligRepo  eligRepo.Repository
+	itauq     *itauq.Loaded
+	sus       *sus.Loaded
 }
 
 // NewUsecase builds a Usecase. The ITAUQ and SUS loaders are parsed at startup
 // and shared across requests.
-func NewUsecase(el elRepo.Repository, q qRepo.Repository, ts tsRepo.Repository, resp respRepo.Repository, instrument *itauq.Loaded, susInstrument *sus.Loaded) *Usecase {
-	return &Usecase{elRepo: el, qRepo: q, tsRepo: ts, respRepo: resp, itauq: instrument, sus: susInstrument}
+func NewUsecase(el elRepo.Repository, q qRepo.Repository, ts tsRepo.Repository, resp respRepo.Repository, elig eligRepo.Repository, instrument *itauq.Loaded, susInstrument *sus.Loaded) *Usecase {
+	return &Usecase{elRepo: el, qRepo: q, tsRepo: ts, respRepo: resp, eligRepo: elig, itauq: instrument, sus: susInstrument}
 }
 
 // EvaluationPayload is the GET /public/evaluation/:token response.
 type EvaluationPayload struct {
-	Questionnaire  QuestionnaireView  `json:"questionnaire"`
-	TaskScenarios  []TaskScenarioView `json:"task_scenarios"`
-	Itauq          ItauqView          `json:"itauq"`
-	Sus            SusView            `json:"sus"`
+	Questionnaire     QuestionnaireView       `json:"questionnaire"`
+	EligibilityCriteria []EligibilityCriterionView `json:"eligibility_criteria"`
+	TaskScenarios     []TaskScenarioView      `json:"task_scenarios"`
+	Itauq             ItauqView               `json:"itauq"`
+	Sus               SusView                 `json:"sus"`
 }
 
 // QuestionnaireView is the questionnaire subset returned to respondents.
@@ -84,6 +92,15 @@ type TaskScenarioView struct {
 	Title       string `json:"title"`
 	Instruction string `json:"instruction"`
 	TaskOrder   int    `json:"task_order"`
+}
+
+// EligibilityCriterionView is one statement the respondent must tick before
+// the identity form. Returned inside the GET /public/evaluation/:token
+// payload (see API_SPECIFICATION.md §8).
+type EligibilityCriterionView struct {
+	ID            string `json:"id"`
+	Statement     string `json:"statement"`
+	CriteriaOrder int    `json:"criteria_order"`
 }
 
 // ItauqView is the ITAUQ instrument returned to respondents, with {AppName}
@@ -170,14 +187,28 @@ func (u *Usecase) GetEvaluation(ctx context.Context, token string) (*EvaluationP
 		})
 	}
 
+	criteria, err := u.eligRepo.ListByQuestionnaire(ctx, link.QuestionnaireID)
+	if err != nil {
+		return nil, fmt.Errorf("list eligibility criteria: %w", err)
+	}
+	critViews := make([]EligibilityCriterionView, 0, len(criteria))
+	for _, c := range criteria {
+		critViews = append(critViews, EligibilityCriterionView{
+			ID:            c.ID,
+			Statement:     c.Statement,
+			CriteriaOrder: c.CriteriaOrder,
+		})
+	}
+
 	questions := make([]itauq.Question, 0, len(u.itauq.Questions))
 	for _, qu := range u.itauq.Questions {
 		questions = append(questions, u.itauq.RenderQuestion(qu, q.AppName))
 	}
 
 	return &EvaluationPayload{
-		Questionnaire: QuestionnaireView{Title: q.Title, AppName: q.AppName},
-		TaskScenarios: views,
+		Questionnaire:      QuestionnaireView{Title: q.Title, AppName: q.AppName},
+		EligibilityCriteria: critViews,
+		TaskScenarios:      views,
 		Itauq: ItauqView{
 			Version:   u.itauq.Version,
 			ScaleMin:  u.itauq.ScaleMin,
@@ -193,7 +224,11 @@ func (u *Usecase) GetEvaluation(ctx context.Context, token string) (*EvaluationP
 	}, nil
 }
 
-// StartRespondent handles POST /public/evaluation/:token/respondents.
+// StartRespondent handles POST /public/evaluation/:token/respondents. If the
+// questionnaire has any active eligibility criteria, the respondent must have
+// ticked every one of them in CheckedCriteriaIDs; partial coverage is rejected
+// with ErrEligibilityNotConfirmed. With zero criteria, the gate is skipped so
+// existing/migrated questionnaires are not affected.
 func (u *Usecase) StartRespondent(ctx context.Context, token string, in domain.StartInput) (*Started, error) {
 	link, _, err := u.resolveContext(ctx, token)
 	if err != nil {
@@ -216,6 +251,28 @@ func (u *Usecase) StartRespondent(ctx context.Context, token string, in domain.S
 	in.Email = strings.TrimSpace(in.Email)
 	in.Occupation = strings.TrimSpace(in.Occupation)
 
+	// Eligibility gate: every active criterion for this questionnaire must
+	// appear in CheckedCriteriaIDs. If the questionnaire defines no criteria,
+	// the gate is skipped.
+	requiredIDs, err := u.eligRepo.ListIDsForQuestionnaire(ctx, link.QuestionnaireID)
+	if err != nil {
+		return nil, fmt.Errorf("list eligibility criteria: %w", err)
+	}
+	if len(requiredIDs) > 0 {
+		checked := make(map[string]struct{}, len(in.CheckedCriteriaIDs))
+		for _, id := range in.CheckedCriteriaIDs {
+			id = strings.TrimSpace(id)
+			if id != "" {
+				checked[id] = struct{}{}
+			}
+		}
+		for _, id := range requiredIDs {
+			if _, ok := checked[id]; !ok {
+				return nil, ErrEligibilityNotConfirmed
+			}
+		}
+	}
+
 	now := time.Now().UTC()
 	p := &domain.Respondent{
 		ID:               uuid.NewString(),
@@ -231,6 +288,29 @@ func (u *Usecase) StartRespondent(ctx context.Context, token string, in domain.S
 	if err := u.respRepo.CreateRespondent(ctx, p); err != nil {
 		return nil, err
 	}
+
+	// Persist the audit trail of which criteria were ticked. No-op when the
+	// questionnaire has no criteria.
+	if len(requiredIDs) > 0 {
+		confs := make([]eligDomain.Confirmation, 0, len(in.CheckedCriteriaIDs))
+		for _, id := range in.CheckedCriteriaIDs {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			confs = append(confs, eligDomain.Confirmation{
+				ID:           uuid.NewString(),
+				RespondentID: p.ID,
+				CriteriaID:   id,
+				IsChecked:    true,
+				CreatedAt:    now,
+			})
+		}
+		if err := u.eligRepo.CreateConfirmations(ctx, confs); err != nil {
+			return nil, fmt.Errorf("save eligibility confirmations: %w", err)
+		}
+	}
+
 	return &Started{RespondentID: p.ID, StartedAt: p.StartedAt}, nil
 }
 

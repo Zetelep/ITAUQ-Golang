@@ -7,9 +7,11 @@ import (
 	"time"
 
 	elDomain "github.com/itauq-golang/internal/domain/evaluationlink"
+	eligDomain "github.com/itauq-golang/internal/domain/eligibility"
 	domain "github.com/itauq-golang/internal/domain/respondent"
 	tsDomain "github.com/itauq-golang/internal/domain/taskscenario"
 	elRepo "github.com/itauq-golang/internal/repository/evaluationlink"
+	eligRepo "github.com/itauq-golang/internal/repository/eligibility"
 	qDomain "github.com/itauq-golang/internal/domain/questionnaire"
 	qRepo "github.com/itauq-golang/internal/repository/questionnaire"
 	respRepo "github.com/itauq-golang/internal/repository/respondent"
@@ -45,6 +47,7 @@ func fixture(t *testing.T) (*Usecase, string) {
 	q := qRepo.NewMemoryRepository()
 	ts := tsRepo.NewMemoryRepository()
 	resp := respRepo.NewMemoryRepository()
+	elig := eligRepo.NewMemoryRepository()
 
 	const (
 		questionnaireID = "questionnaire-1"
@@ -77,7 +80,7 @@ func fixture(t *testing.T) (*Usecase, string) {
 		t.Fatalf("seed evaluation link: %v", err)
 	}
 
-	uc := NewUsecase(el, q, ts, resp, mustInstrument(t), mustSUS(t))
+	uc := NewUsecase(el, q, ts, resp, elig, mustInstrument(t), mustSUS(t))
 	return uc, token
 }
 
@@ -309,6 +312,57 @@ func TestSubmitSUSAnswersOutOfRangeScoreReturns422(t *testing.T) {
 	in.Answers[0].Score = 6
 	if _, err := uc.SubmitSUSAnswers(context.Background(), token, started.RespondentID, in); !errors.Is(err, ErrInvalidSUSAnswers) {
 		t.Fatalf("expected ErrInvalidSUSAnswers for score=6, got %v", err)
+	}
+}
+
+func TestStartRespondentEligibilityGateRejectsIncompleteCoverage(t *testing.T) {
+	uc, token := fixture(t)
+
+	// Seed two criteria on the questionnaire that backs the link.
+	now := time.Now().UTC()
+	for _, c := range []eligDomain.EligibilityCriterion{
+		{ID: "c-1", QuestionnaireID: "questionnaire-1", Statement: "Saya berdomisili di Kota X", CriteriaOrder: 1, CreatedAt: now},
+		{ID: "c-2", QuestionnaireID: "questionnaire-1", Statement: "Saya berusia 18-25 tahun", CriteriaOrder: 2, CreatedAt: now},
+	} {
+		if err := uc.eligRepo.Create(context.Background(), &c); err != nil {
+			t.Fatalf("seed criterion: %v", err)
+		}
+	}
+
+	// Partial coverage → ErrEligibilityNotConfirmed.
+	_, err := uc.StartRespondent(context.Background(), token, domain.StartInput{
+		Name:               "Ahmad",
+		CheckedCriteriaIDs: []string{"c-1"},
+	})
+	if !errors.Is(err, ErrEligibilityNotConfirmed) {
+		t.Fatalf("expected ErrEligibilityNotConfirmed, got %v", err)
+	}
+
+	// Full coverage → ok.
+	if _, err := uc.StartRespondent(context.Background(), token, domain.StartInput{
+		Name:               "Ahmad",
+		CheckedCriteriaIDs: []string{"c-1", "c-2"},
+	}); err != nil {
+		t.Fatalf("StartRespondent with full coverage: %v", err)
+	}
+
+	// Extra ids beyond the active criteria are allowed (server only requires
+	// coverage, not strict equality).
+	if _, err := uc.StartRespondent(context.Background(), token, domain.StartInput{
+		Name:               "Siti",
+		CheckedCriteriaIDs: []string{"c-1", "c-2", "c-stale"},
+	}); err != nil {
+		t.Fatalf("StartRespondent with extra ids: %v", err)
+	}
+}
+
+func TestStartRespondentEmptyCriteriaListSkipsGate(t *testing.T) {
+	uc, token := fixture(t)
+
+	// No criteria on the questionnaire → respondent may start without
+	// checked_criteria_ids (backward compatibility with legacy links).
+	if _, err := uc.StartRespondent(context.Background(), token, domain.StartInput{Name: "Budi"}); err != nil {
+		t.Fatalf("StartRespondent with no criteria: %v", err)
 	}
 }
 

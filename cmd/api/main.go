@@ -9,16 +9,24 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/itauq-golang/internal/delivery/http/route"
+	adminRepo "github.com/itauq-golang/internal/repository/administrator"
 	appRepo "github.com/itauq-golang/internal/repository/application"
 	elRepo "github.com/itauq-golang/internal/repository/evaluationlink"
+	evalRepo "github.com/itauq-golang/internal/repository/evaluation"
+	eligRepo "github.com/itauq-golang/internal/repository/eligibility"
 	qRepo "github.com/itauq-golang/internal/repository/questionnaire"
 	respRepo "github.com/itauq-golang/internal/repository/respondent"
 	tsRepo "github.com/itauq-golang/internal/repository/taskscenario"
+	adminUsecase "github.com/itauq-golang/internal/usecase/administrator"
 	appUsecase "github.com/itauq-golang/internal/usecase/application"
 	elUsecase "github.com/itauq-golang/internal/usecase/evaluationlink"
+	evalUsecase "github.com/itauq-golang/internal/usecase/evaluation"
+	eligUsecase "github.com/itauq-golang/internal/usecase/eligibility"
 	pfUsecase "github.com/itauq-golang/internal/usecase/publicflow"
+	profileUsecase "github.com/itauq-golang/internal/usecase/profile"
 	qUsecase "github.com/itauq-golang/internal/usecase/questionnaire"
 	tsUsecase "github.com/itauq-golang/internal/usecase/taskscenario"
+	profileRepo "github.com/itauq-golang/internal/repository/profile"
 	"github.com/itauq-golang/pkg/itauq"
 	"github.com/itauq-golang/pkg/sus"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -49,8 +57,11 @@ func main() {
 	var questionnaires qRepo.Repository
 	var taskScenarios tsRepo.Repository
 	var evaluationLinks elRepo.Repository
+	var eligibility eligRepo.Repository
 	var respondents respRepo.Repository
 	var provisioner appUsecase.Provisioner
+	var administrators adminRepo.Repository
+	var adminInviter adminUsecase.Inviter
 	var db *pgxpool.Pool
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -59,8 +70,11 @@ func main() {
 		questionnaires = qRepo.NewMemoryRepository()
 		taskScenarios = tsRepo.NewMemoryRepository()
 		evaluationLinks = elRepo.NewMemoryRepository()
+		eligibility = eligRepo.NewMemoryRepository()
 		respondents = respRepo.NewMemoryRepository()
+		administrators = adminRepo.NewMemoryRepository()
 		provisioner = appUsecase.MemoryProvisioner{}
+		adminInviter = adminUsecase.MemoryInviter{}
 	} else {
 		var err error
 		db, err = pgxpool.New(context.Background(), databaseURL)
@@ -75,8 +89,11 @@ func main() {
 		questionnaires = qRepo.NewPostgresRepository(db)
 		taskScenarios = tsRepo.NewPostgresRepository(db)
 		evaluationLinks = elRepo.NewPostgresRepository(db)
+		eligibility = eligRepo.NewPostgresRepository(db)
 		respondents = respRepo.NewPostgresRepository(db)
+		administrators = adminRepo.NewPostgresRepository(db)
 		provisioner = &appUsecase.SupabaseProvisioner{URL: os.Getenv("SUPABASE_URL"), ServiceRoleKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"), DB: db}
+		adminInviter = &adminUsecase.SupabaseInviter{URL: os.Getenv("SUPABASE_URL"), ServiceRoleKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY")}
 	}
 
 	instrument, err := itauq.Load()
@@ -89,16 +106,39 @@ func main() {
 		log.Fatal("load sus instrument: ", err)
 	}
 
+	var profiles profileRepo.Repository
+	var passwordUpdater profileUsecase.PasswordUpdater = profileUsecase.MemoryPasswordUpdater{}
+	if databaseURL == "" {
+		profiles = profileRepo.NewMemoryRepository()
+	} else {
+		profiles = profileRepo.NewPostgresRepository(db)
+		passwordUpdater = &profileUsecase.SupabasePasswordUpdater{
+			URL:            os.Getenv("SUPABASE_URL"),
+			ServiceRoleKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
+		}
+	}
+	profileUC := profileUsecase.NewUsecase(profiles, passwordUpdater)
+
 	appUC := appUsecase.NewUsecase(applications, provisioner)
+	adminUC := adminUsecase.NewUsecase(administrators, adminInviter)
 	qUC := qUsecase.NewUsecase(questionnaires)
 	tsUC := tsUsecase.NewUsecase(taskScenarios, questionnaires)
+	eligUC := eligUsecase.NewUsecase(eligibility, questionnaires)
 	elUC := elUsecase.NewUsecase(evaluationLinks, questionnaires, os.Getenv("PUBLIC_EVALUATION_URL_BASE"))
-	pfUC := pfUsecase.NewUsecase(evaluationLinks, questionnaires, taskScenarios, respondents, instrument, susInstrument)
+	pfUC := pfUsecase.NewUsecase(evaluationLinks, questionnaires, taskScenarios, respondents, eligibility, instrument, susInstrument)
 
 	// Pass the db pool (may be nil) to route.Setup so middleware can look up
 	// roles from the profiles table when available; otherwise middleware will
 	// fall back to header-based behavior for in-memory/dev mode.
-	route.Setup(r, appUC, qUC, tsUC, elUC, pfUC, instrument, susInstrument, db)
+	var evalRepoImpl evalRepo.Repository
+	if databaseURL == "" {
+		evalRepoImpl = evalRepo.NewMemoryRepository(evalRepo.NewMemoryDataSource())
+	} else {
+		evalRepoImpl = evalRepo.NewPostgresRepository(db)
+	}
+	evalUC := evalUsecase.NewUsecase(evalRepoImpl, instrument, susInstrument)
+
+	route.Setup(r, appUC, qUC, tsUC, elUC, pfUC, profileUC, evalUC, adminUC, eligUC, instrument, susInstrument, db)
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"

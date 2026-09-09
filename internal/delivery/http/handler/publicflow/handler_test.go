@@ -13,6 +13,7 @@ import (
 	qDomain "github.com/itauq-golang/internal/domain/questionnaire"
 	tsDomain "github.com/itauq-golang/internal/domain/taskscenario"
 	elRepo "github.com/itauq-golang/internal/repository/evaluationlink"
+	eligRepo "github.com/itauq-golang/internal/repository/eligibility"
 	qRepo "github.com/itauq-golang/internal/repository/questionnaire"
 	respRepo "github.com/itauq-golang/internal/repository/respondent"
 	tsRepo "github.com/itauq-golang/internal/repository/taskscenario"
@@ -31,6 +32,7 @@ func newTestRouter(t *testing.T) (*gin.Engine, string) {
 	q := qRepo.NewMemoryRepository()
 	ts := tsRepo.NewMemoryRepository()
 	resp := respRepo.NewMemoryRepository()
+	elig := eligRepo.NewMemoryRepository()
 
 	const (
 		questionnaireID = "questionnaire-1"
@@ -64,7 +66,7 @@ func newTestRouter(t *testing.T) (*gin.Engine, string) {
 	if err != nil {
 		t.Fatalf("sus: %v", err)
 	}
-	uc := publicflow.NewUsecase(el, q, ts, resp, inst, susInst)
+	uc := publicflow.NewUsecase(el, q, ts, resp, elig, inst, susInst)
 
 	r := gin.New()
 	g := r.Group("/public/evaluation")

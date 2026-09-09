@@ -10,9 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 	appUsecase "github.com/itauq-golang/internal/usecase/application"
 	elUsecase "github.com/itauq-golang/internal/usecase/evaluationlink"
+	evalUsecase "github.com/itauq-golang/internal/usecase/evaluation"
+	eligUsecase "github.com/itauq-golang/internal/usecase/eligibility"
 	pfUsecase "github.com/itauq-golang/internal/usecase/publicflow"
+	profileUsecase "github.com/itauq-golang/internal/usecase/profile"
 	qUsecase "github.com/itauq-golang/internal/usecase/questionnaire"
 	tsUsecase "github.com/itauq-golang/internal/usecase/taskscenario"
+	adminUsecase "github.com/itauq-golang/internal/usecase/administrator"
 	"github.com/itauq-golang/pkg/itauq"
 	"github.com/itauq-golang/pkg/sus"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -180,13 +184,17 @@ func RequireSuperAdmin(c *gin.Context) {
 // Setup registers routes and stores the DB pool for middleware use.
 // Public, token-gated respondent endpoints are mounted *before* the auth
 // middleware so they never see a JWT — they're keyed by the URL token alone.
-func Setup(r *gin.Engine, appUC *appUsecase.Usecase, qUC *qUsecase.Usecase, tsUC *tsUsecase.Usecase, elUC *elUsecase.Usecase, pfUC *pfUsecase.Usecase, instrument *itauq.Loaded, susInstrument *sus.Loaded, d *pgxpool.Pool) {
+func Setup(r *gin.Engine, appUC *appUsecase.Usecase, qUC *qUsecase.Usecase, tsUC *tsUsecase.Usecase, elUC *elUsecase.Usecase, pfUC *pfUsecase.Usecase, profileUC *profileUsecase.Usecase, evalUC *evalUsecase.Usecase, adminUC *adminUsecase.Usecase, eligUC *eligUsecase.Usecase, instrument *itauq.Loaded, susInstrument *sus.Loaded, d *pgxpool.Pool) {
 	db = d
 	SetupPublicFlow(r, pfUC)
 	r.Use(extractUserContext)
 	SetupApplications(r, appUC, RequireSuperAdmin)
+	SetupAdministrators(r, adminUC, RequireSuperAdmin)
 	SetupQuestionnaires(r, qUC, RequireAdmin)
 	SetupTaskScenarios(r, tsUC, RequireAdmin)
+	SetupEligibility(r, eligUC, RequireAdmin)
 	SetupEvaluationLinks(r, elUC, RequireAdmin)
+	SetupProfile(r, profileUC, RequireAdmin)
 	SetupInstruments(r, instrument, susInstrument, RequireAdmin)
+	SetupEvaluation(r, evalUC, RequireAdmin)
 }
