@@ -92,6 +92,12 @@ func (r *MemoryRepository) Update(_ context.Context, id string, in domain.Update
 	if in.FullName != nil {
 		x.FullName = *in.FullName
 	}
+	if in.Institution != nil {
+		x.Institution = *in.Institution
+	}
+	if in.Occupation != nil {
+		x.Occupation = *in.Occupation
+	}
 	if in.IsActive != nil {
 		x.IsActive = *in.IsActive
 	}

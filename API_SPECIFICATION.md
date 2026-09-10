@@ -148,7 +148,7 @@ Approves the application: creates the Supabase Auth user (email invite to set pa
 
 ## 3. Profile (self-service)
 
-Lets the logged-in user (Super Admin or Administrator) fetch and edit their **own** `profiles` row — e.g. an Administrator updating their display name. Separate from §4 `/administrators`, which is Super Admin managing *other* people's accounts.
+Lets the logged-in user (Super Admin or Administrator) fetch and edit their **own** `profiles` row — e.g. an Administrator updating their display name, institution, or occupation. Separate from §4 `/administrators`, which is Super Admin managing *other* people's accounts.
 
 ### `GET /profiles/me`
 **Auth:** Bearer (Super Admin or Administrator)
@@ -171,15 +171,19 @@ Lets the logged-in user (Super Admin or Administrator) fetch and edit their **ow
 When `must_change_password` is `true`, the frontend should immediately redirect the user to the change-password screen and block navigation until `POST /auth/change-password` succeeds.
 
 ### `PATCH /profiles/me`
-Edits the caller's own profile. Only `full_name` is editable here — `role` is Super-Admin-controlled (via `/administrators`), and `email` is tied to the Supabase Auth identity, so email changes go through Supabase's own `updateUser` flow on the frontend, not this API.
+Edits the caller's own profile. `full_name`, `institution`, and `occupation` are editable here — `role` is Super-Admin-controlled (via `/administrators`), and `email` is tied to the Supabase Auth identity, so email changes go through Supabase's own `updateUser` flow on the frontend, not this API. Supplied string values are trimmed; blank `institution` or `occupation` values clear those fields.
 
 **Auth:** Bearer (Super Admin or Administrator)
 **Body:**
 ```json
-{ "full_name": "Siti Aminah Putri" }
+{
+  "full_name": "Siti Aminah Putri",
+  "institution": "Universitas XYZ",
+  "occupation": "Peneliti"
+}
 ```
 **Response `200`:** the updated profile.
-**Errors:** `400` if `full_name` is blank; any other field in the body is ignored or rejected with `VALIDATION_ERROR`.
+**Errors:** `400` if `full_name` is blank; unknown fields are ignored or rejected with `VALIDATION_ERROR`.
 
 ### `POST /auth/change-password`
 Forces the caller to rotate their password. Used as the first step after first login (the account is provisioned with a temporary password and `must_change_password = true`). On success, the `must_change_password` flag on the caller's profile is cleared, so the frontend can release navigation.
@@ -225,10 +229,10 @@ Direct account creation, bypassing the application flow — optional convenience
 **Response `201`:** created administrator, invite email sent. `application_id` will be `null`.
 
 ### `PATCH /administrators/{id}`
-Update name or activate/deactivate an account (recommended over hard delete, to preserve referential history of their questionnaires/respondents).
+Update name, institution, occupation, or activate/deactivate an account (recommended over hard delete, to preserve referential history of their questionnaires/respondents). Supplied string values are trimmed; blank `institution` or `occupation` values clear those fields.
 
 **Auth:** Super Admin only
-**Body:** any of `{ "full_name": "...", "is_active": false }`
+**Body:** any subset of `{ "full_name": "...", "institution": "...", "occupation": "...", "is_active": false }`
 
 ### `DELETE /administrators/{id}`
 Hard delete (cascades to their questionnaires, task scenarios, evaluation links, respondents — see schema `on delete cascade`). Prefer `PATCH { is_active: false }` unless the account must be fully purged.

@@ -104,6 +104,22 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, in domain.Up
 		args = append(args, *in.FullName)
 		argIdx++
 	}
+	if in.Institution != nil {
+		if setClauses != "" {
+			setClauses += ", "
+		}
+		setClauses += fmt.Sprintf("institution = NULLIF($%d, '')", argIdx)
+		args = append(args, *in.Institution)
+		argIdx++
+	}
+	if in.Occupation != nil {
+		if setClauses != "" {
+			setClauses += ", "
+		}
+		setClauses += fmt.Sprintf("occupation = NULLIF($%d, '')", argIdx)
+		args = append(args, *in.Occupation)
+		argIdx++
+	}
 	if in.IsActive != nil {
 		if setClauses != "" {
 			setClauses += ", "

@@ -13,5 +13,7 @@ type Profile struct {
 }
 
 type UpdateInput struct {
-	FullName *string `json:"full_name,omitempty"`
+	FullName    *string `json:"full_name,omitempty"`
+	Institution *string `json:"institution,omitempty"`
+	Occupation  *string `json:"occupation,omitempty"`
 }

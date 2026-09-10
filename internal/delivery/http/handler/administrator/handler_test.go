@@ -26,7 +26,7 @@ func newTestRouter(t *testing.T) *gin.Engine {
 	g.GET("", h.List)
 	g.GET("/:id", h.Get)
 	g.POST("", h.Create)
-	g.PUT("/:id", h.Update)
+	g.PATCH("/:id", h.Update)
 	g.DELETE("/:id", h.Delete)
 	return r
 }
@@ -159,7 +159,7 @@ func TestUpdateHappy(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	body := bytes.NewBufferString(`{"full_name":"Updated Name"}`)
-	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req, _ := http.NewRequest(http.MethodPatch, "/administrators/"+id, body)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -183,7 +183,7 @@ func TestUpdateNotFound(t *testing.T) {
 	r := newTestRouter(t)
 	w := httptest.NewRecorder()
 	body := bytes.NewBufferString(`{"full_name":"X"}`)
-	req, _ := http.NewRequest(http.MethodPut, "/administrators/nonexistent", body)
+	req, _ := http.NewRequest(http.MethodPatch, "/administrators/nonexistent", body)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -211,7 +211,7 @@ func TestUpdateIsActiveOnly(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	body := bytes.NewBufferString(`{"is_active":false}`)
-	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req, _ := http.NewRequest(http.MethodPatch, "/administrators/"+id, body)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -240,8 +240,8 @@ func TestUpdateBothFields(t *testing.T) {
 	id := seedAdmin(t, r)
 
 	w := httptest.NewRecorder()
-	body := bytes.NewBufferString(`{"full_name":"Jane Smith","is_active":false}`)
-	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	body := bytes.NewBufferString(`{"full_name":"Jane Smith","institution":"  Updated University  ","occupation":"  Researcher  ","is_active":false}`)
+	req, _ := http.NewRequest(http.MethodPatch, "/administrators/"+id, body)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -250,8 +250,10 @@ func TestUpdateBothFields(t *testing.T) {
 	}
 	var resp struct {
 		Data struct {
-			FullName string `json:"full_name"`
-			IsActive bool   `json:"is_active"`
+			FullName    string `json:"full_name"`
+			Institution string `json:"institution"`
+			Occupation  string `json:"occupation"`
+			IsActive    bool   `json:"is_active"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
@@ -260,8 +262,15 @@ func TestUpdateBothFields(t *testing.T) {
 	if resp.Data.FullName != "Jane Smith" {
 		t.Fatalf("expected full_name=Jane Smith, got %s", resp.Data.FullName)
 	}
+
 	if resp.Data.IsActive {
 		t.Fatalf("expected is_active=false, got true")
+	}
+	if resp.Data.Institution != "Updated University" {
+		t.Fatalf("expected trimmed institution, got %q", resp.Data.Institution)
+	}
+	if resp.Data.Occupation != "Researcher" {
+		t.Fatalf("expected trimmed occupation, got %q", resp.Data.Occupation)
 	}
 }
 
@@ -271,7 +280,7 @@ func TestUpdateRejectsEmptyFullName(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	body := bytes.NewBufferString(`{"full_name":"   "}`)
-	req, _ := http.NewRequest(http.MethodPut, "/administrators/"+id, body)
+	req, _ := http.NewRequest(http.MethodPatch, "/administrators/"+id, body)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 

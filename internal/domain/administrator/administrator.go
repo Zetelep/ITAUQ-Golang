@@ -23,8 +23,10 @@ type CreateInput struct {
 }
 
 type UpdateInput struct {
-	FullName *string `json:"full_name,omitempty"`
-	IsActive *bool   `json:"is_active,omitempty"`
+	FullName    *string `json:"full_name,omitempty"`
+	Institution *string `json:"institution,omitempty"`
+	Occupation  *string `json:"occupation,omitempty"`
+	IsActive    *bool   `json:"is_active,omitempty"`
 }
 
 type ListFilter struct {

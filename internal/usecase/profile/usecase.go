@@ -36,6 +36,14 @@ func (u *Usecase) UpdateMe(ctx context.Context, userID string, in domain.UpdateI
 		}
 		in.FullName = &name
 	}
+	if in.Institution != nil {
+		institution := strings.TrimSpace(*in.Institution)
+		in.Institution = &institution
+	}
+	if in.Occupation != nil {
+		occupation := strings.TrimSpace(*in.Occupation)
+		in.Occupation = &occupation
+	}
 	return u.repo.Update(ctx, userID, in)
 }
 

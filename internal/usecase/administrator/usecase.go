@@ -92,6 +92,14 @@ func (u *Usecase) Update(ctx context.Context, id string, in domain.UpdateInput) 
 		}
 		in.FullName = &name
 	}
+	if in.Institution != nil {
+		institution := strings.TrimSpace(*in.Institution)
+		in.Institution = &institution
+	}
+	if in.Occupation != nil {
+		occupation := strings.TrimSpace(*in.Occupation)
+		in.Occupation = &occupation
+	}
 	return u.repo.Update(ctx, id, in)
 }
 
