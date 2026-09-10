@@ -44,7 +44,7 @@ func main() {
 
 	// CORS configuration: allow frontend origins
 	corsConfig := cors.Config{
-		AllowOrigins:     []string{"https://itauq.site", "http://localhost:5173"},
+		AllowOrigins:     []string{"https://itauq.site", "http://localhost:5173", "https://www.itauq.site","https://itauq.vercel.app/"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
