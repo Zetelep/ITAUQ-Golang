@@ -69,7 +69,7 @@
         {
             "id": 9,
             "category": "Dependability",
-            "text": "   ",
+            "text": "Fitur Aplikasi {AppName} ini berfungsi dengan baik sesuai yang diharapkan.",
             "minLabel": "tidak berfungsi",
             "maxLabel": "sangat berfungsi"
         },
