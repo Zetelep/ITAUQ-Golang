@@ -17,6 +17,7 @@ type Repository interface {
 	Get(context.Context, string) (*domain.TaskScenario, error)
 	Update(context.Context, string, domain.UpdateInput) (*domain.TaskScenario, error)
 	Delete(context.Context, string) error
+	GetStats(context.Context, string) ([]domain.TaskScenarioStats, error)
 }
 
 type MemoryRepository struct {
@@ -93,4 +94,34 @@ func (r *MemoryRepository) Delete(_ context.Context, id string) error {
 	}
 	delete(r.items, id)
 	return nil
+}
+
+func (r *MemoryRepository) GetStats(_ context.Context, questionnaireID string) ([]domain.TaskScenarioStats, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	all := make([]domain.TaskScenario, 0)
+	for _, x := range r.items {
+		if x.QuestionnaireID == questionnaireID {
+			all = append(all, *x)
+		}
+	}
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].TaskOrder == all[j].TaskOrder {
+			return all[i].CreatedAt.Before(all[j].CreatedAt)
+		}
+		return all[i].TaskOrder < all[j].TaskOrder
+	})
+	out := make([]domain.TaskScenarioStats, 0, len(all))
+	for _, t := range all {
+		out = append(out, domain.TaskScenarioStats{
+			TaskScenarioID:     t.ID,
+			Title:              t.Title,
+			TaskOrder:          t.TaskOrder,
+			TotalAttempts:      0,
+			SuccessfulAttempts: 0,
+			CompletionRate:     0,
+			AvgCompletionTime:  nil,
+		})
+	}
+	return out, nil
 }

@@ -22,3 +22,20 @@ type UpdateInput struct {
 	Instruction *string `json:"instruction"`
 	TaskOrder   *int    `json:"task_order"`
 }
+
+// TaskScenarioStats holds aggregated statistics for a single task scenario.
+type TaskScenarioStats struct {
+	TaskScenarioID    string   `json:"task_scenario_id"`
+	Title             string   `json:"title"`
+	TaskOrder         int      `json:"task_order"`
+	TotalAttempts     int      `json:"total_attempts"`
+	SuccessfulAttempts int    `json:"successful_attempts"`
+	CompletionRate    float64  `json:"completion_rate"`
+	AvgCompletionTime *float64 `json:"avg_completion_time"`
+}
+
+// QuestionnaireTaskScenarioStats is the top-level response for the stats endpoint.
+type QuestionnaireTaskScenarioStats struct {
+	QuestionnaireID string               `json:"questionnaire_id"`
+	TaskScenarios   []TaskScenarioStats  `json:"task_scenarios"`
+}

@@ -116,6 +116,44 @@ func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (r *PostgresRepository) GetStats(ctx context.Context, questionnaireID string) ([]domain.TaskScenarioStats, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			s.id,
+			s.title,
+			s.task_order,
+			COUNT(a.id) AS total_attempts,
+			COUNT(a.id) FILTER (WHERE a.is_success = true) AS successful_attempts,
+			CASE WHEN COUNT(a.id) > 0
+				THEN ROUND(COUNT(a.id) FILTER (WHERE a.is_success = true)::numeric / COUNT(a.id)::numeric * 100, 2)
+				ELSE 0
+			END AS completion_rate,
+			ROUND(AVG(a.duration_seconds) FILTER (WHERE a.is_success = true), 2) AS avg_completion_time
+		FROM public.task_scenarios s
+		LEFT JOIN public.task_scenario_attempts a ON a.task_scenario_id = s.id
+		WHERE s.questionnaire_id = $1
+		GROUP BY s.id, s.title, s.task_order
+		ORDER BY s.task_order ASC, s.created_at ASC
+	`, questionnaireID)
+	if err != nil {
+		return nil, fmt.Errorf("get task scenario stats: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]domain.TaskScenarioStats, 0)
+	for rows.Next() {
+		var s domain.TaskScenarioStats
+		if err := rows.Scan(&s.TaskScenarioID, &s.Title, &s.TaskOrder, &s.TotalAttempts, &s.SuccessfulAttempts, &s.CompletionRate, &s.AvgCompletionTime); err != nil {
+			return nil, fmt.Errorf("scan task scenario stats: %w", err)
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task scenario stats: %w", err)
+	}
+	return out, nil
+}
+
 type rowScanner interface{ Scan(...any) error }
 
 func scanTaskScenario(row rowScanner) (domain.TaskScenario, error) {

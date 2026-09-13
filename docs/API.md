@@ -842,6 +842,64 @@ List all task scenarios for a questionnaire.
 
 ---
 
+#### `GET /questionnaires/:id/task-scenarios/stats`
+
+Get aggregated task scenario statistics for a questionnaire dashboard (completion rate and average completion time per task scenario).
+
+**Auth:** Owning Administrator or Super Admin
+
+**URL Parameters:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | uuid | Questionnaire ID |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "questionnaire_id": "660e8400-e29b-41d4-a716-446655440000",
+    "task_scenarios": [
+      {
+        "task_scenario_id": "770e8400-e29b-41d4-a716-446655440000",
+        "title": "Mencari destinasi wisata terdekat",
+        "task_order": 1,
+        "total_attempts": 25,
+        "successful_attempts": 20,
+        "completion_rate": 80.00,
+        "avg_completion_time": 45.32
+      },
+      {
+        "task_scenario_id": "880e8400-e29b-41d4-a716-446655440000",
+        "title": "Melihat detail tempat wisata",
+        "task_order": 2,
+        "total_attempts": 25,
+        "successful_attempts": 23,
+        "completion_rate": 92.00,
+        "avg_completion_time": 30.15
+      }
+    ]
+  }
+}
+```
+
+**Field Descriptions:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `task_scenario_id` | uuid | Task scenario ID |
+| `title` | string | Task scenario title |
+| `task_order` | int | Task ordering position |
+| `total_attempts` | int | Total number of attempts across all respondents |
+| `successful_attempts` | int | Number of attempts where `is_success = true` |
+| `completion_rate` | float | Percentage of successful attempts (`successful_attempts / total_attempts * 100`), 0 if no attempts |
+| `avg_completion_time` | float\|null | Average `duration_seconds` for successful attempts only, null if no successful attempts |
+
+**Errors:**
+- `403 FORBIDDEN` - Not authorized to access this questionnaire
+- `404 NOT_FOUND` - Questionnaire not found
+
+---
+
 #### `GET /task-scenarios/:id`
 
 Get a single task scenario by ID.
@@ -1915,6 +1973,7 @@ Aggregate report across **all** respondents of one questionnaire — the "Genera
 | `DELETE /questionnaires/:id` | ✅ (own) | ✅ (own) | - |
 | `POST /questionnaires/:id/task-scenarios` | ✅ (own) | ✅ (own) | - |
 | `GET /questionnaires/:id/task-scenarios` | ✅ | ✅ (own) | - |
+| `GET /questionnaires/:id/task-scenarios/stats` | ✅ | ✅ (own) | - |
 | `GET /task-scenarios/:id` | ✅ | ✅ (own) | - |
 | `PATCH /task-scenarios/:id` | ✅ (own) | ✅ (own) | - |
 | `DELETE /task-scenarios/:id` | ✅ (own) | ✅ (own) | - |

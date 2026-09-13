@@ -107,3 +107,17 @@ func (u *Usecase) Delete(ctx context.Context, id, callerID string) error {
 	}
 	return u.repo.Delete(ctx, id)
 }
+
+func (u *Usecase) GetStats(ctx context.Context, questionnaireID, callerID, callerRole string) (*domain.QuestionnaireTaskScenarioStats, error) {
+	if err := u.checkOwnership(ctx, questionnaireID, callerID, callerRole); err != nil {
+		return nil, err
+	}
+	stats, err := u.repo.GetStats(ctx, questionnaireID)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.QuestionnaireTaskScenarioStats{
+		QuestionnaireID: questionnaireID,
+		TaskScenarios:   stats,
+	}, nil
+}

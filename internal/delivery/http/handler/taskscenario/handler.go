@@ -107,6 +107,19 @@ func (h *Handler) Delete(c *gin.Context) {
 	c.JSON(204, nil)
 }
 
+func (h *Handler) GetStats(c *gin.Context) {
+	callerID := getCallerID(c)
+	callerRole := getCallerRole(c)
+	questionnaireID := c.Param("id")
+
+	stats, err := h.uc.GetStats(c.Request.Context(), questionnaireID, callerID, callerRole)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	ok(c, stats)
+}
+
 func handleError(c *gin.Context, err error) {
 	if errors.Is(err, repo.ErrNotFound) || errors.Is(err, qRepo.ErrNotFound) {
 		fail(c, 404, "NOT_FOUND", "resource not found")

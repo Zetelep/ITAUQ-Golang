@@ -12,6 +12,7 @@ func SetupTaskScenarios(r gin.IRouter, uc *u.Usecase, requireAdmin gin.HandlerFu
 	// Nested under questionnaires: /questionnaires/:id/task-scenarios
 	q := r.Group("/questionnaires/:id/task-scenarios", requireAdmin)
 	q.GET("", handler.List)
+	q.GET("/stats", handler.GetStats)
 	q.POST("", handler.Create)
 
 	// Top-level for PATCH/DELETE by task scenario ID
