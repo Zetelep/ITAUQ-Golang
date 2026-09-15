@@ -44,3 +44,4 @@ docker-compose.override.yml
 /docs/docs.go
 
 /.commandcode
+/scripts
