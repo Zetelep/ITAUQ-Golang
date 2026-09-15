@@ -101,6 +101,12 @@ func (r *MemoryRepository) Update(_ context.Context, id string, in domain.Update
 	if in.Status != nil {
 		x.Status = *in.Status
 	}
+	if in.AppLink != nil {
+		x.AppLink = *in.AppLink
+	}
+	if in.ImgLink != nil {
+		x.ImgLink = *in.ImgLink
+	}
 	x.UpdatedAt = time.Now().UTC()
 	cp := *x
 	return &cp, nil

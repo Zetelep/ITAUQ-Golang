@@ -574,7 +574,9 @@ The questionnaire is always owned by the authenticated caller. The client cannot
   "app_name": "WisataKu",
   "description": "Evaluasi tahap 1 untuk skripsi",
   "status": "draft",
-  "itauq_version": "itauq-v1"
+  "itauq_version": "itauq-v1",
+  "app_link": "https://play.google.com/store/apps/details?id=com.example",
+  "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview.png"
 }
 ```
 
@@ -585,6 +587,8 @@ The questionnaire is always owned by the authenticated caller. The client cannot
 | `description` | string | No | Description of the evaluation |
 | `status` | string | No | `draft`, `active`, or `closed` (default: `draft`) |
 | `itauq_version` | string | No | ITAUQ version (default: `itauq-v1`) |
+| `app_link` | string | No | URL respondents click to open the app being evaluated. Must be a valid `http`/`https` URL |
+| `img_link` | string | No | URL of a preview image for the app (uploaded to Supabase Storage by the frontend). Must be a valid `http`/`https` URL |
 
 **Response (201 Created):**
 ```json
@@ -598,6 +602,8 @@ The questionnaire is always owned by the authenticated caller. The client cannot
     "description": "Evaluasi tahap 1 untuk skripsi",
     "itauq_version": "itauq-v1",
     "status": "draft",
+    "app_link": "https://play.google.com/store/apps/details?id=com.example",
+    "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview.png",
     "created_at": "2026-08-21T10:30:00Z",
     "updated_at": "2026-08-21T10:30:00Z"
   }
@@ -640,6 +646,8 @@ List questionnaires with filtering and pagination.
       "description": "Evaluasi tahap 1 untuk skripsi",
       "itauq_version": "itauq-v1",
       "status": "draft",
+      "app_link": "https://play.google.com/store/apps/details?id=com.example",
+      "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview.png",
       "created_at": "2026-08-21T10:30:00Z",
       "updated_at": "2026-08-21T10:30:00Z"
     }
@@ -673,6 +681,8 @@ Get a single questionnaire by ID.
     "description": "Evaluasi tahap 1 untuk skripsi",
     "itauq_version": "itauq-v1",
     "status": "draft",
+    "app_link": "https://play.google.com/store/apps/details?id=com.example",
+    "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview.png",
     "created_at": "2026-08-21T10:30:00Z",
     "updated_at": "2026-08-21T10:30:00Z"
   }
@@ -697,7 +707,9 @@ Update a questionnaire (partial update).
   "title": "Evaluasi Usability App Wisata Kalsel - Updated",
   "app_name": "WisataKu v2",
   "description": "Updated description",
-  "status": "active"
+  "status": "active",
+  "app_link": "https://play.google.com/store/apps/details?id=com.example.v2",
+  "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview-v2.png"
 }
 ```
 
@@ -707,6 +719,8 @@ Update a questionnaire (partial update).
 | `app_name` | string | New app name |
 | `description` | string | New description |
 | `status` | string | New status: `draft`, `active`, `closed` |
+| `app_link` | string | URL respondents click to open the app. Must be a valid `http`/`https` URL. Send empty string to clear |
+| `img_link` | string | URL of the preview image (uploaded to Supabase Storage by the frontend). Must be a valid `http`/`https` URL. Send empty string to clear |
 
 **Response (200 OK):**
 ```json
@@ -720,6 +734,8 @@ Update a questionnaire (partial update).
     "description": "Updated description",
     "itauq_version": "itauq-v1",
     "status": "active",
+    "app_link": "https://play.google.com/store/apps/details?id=com.example.v2",
+    "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview-v2.png",
     "created_at": "2026-08-21T10:30:00Z",
     "updated_at": "2026-08-21T12:00:00Z"
   }
@@ -1308,7 +1324,9 @@ Loads everything the respondent-facing app needs to render the flow.
   "data": {
     "questionnaire": {
       "title": "Evaluasi Usability App Wisata Kalsel",
-      "app_name": "WisataKu"
+      "app_name": "WisataKu",
+      "app_link": "https://play.google.com/store/apps/details?id=com.example",
+      "img_link": "https://xxx.supabase.co/storage/v1/object/public/questionnaire-images/abc/preview.png"
     },
     "eligibility_criteria": [
       {
@@ -1847,6 +1865,8 @@ Aggregate report across **all** respondents of one questionnaire — the "Genera
 | `description` | text | Description |
 | `itauq_version` | text | ITAUQ version (default: `itauq-v1`) |
 | `status` | enum | `draft`, `active`, `closed` |
+| `app_link` | text | URL respondents click to open the app being evaluated |
+| `img_link` | text | URL of a preview image (stored in Supabase Storage) |
 | `created_at` | timestamp | Creation time |
 | `updated_at` | timestamp | Last update time |
 

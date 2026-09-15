@@ -25,6 +25,8 @@ CREATE TABLE public.questionnaires (
   status USER-DEFINED NOT NULL DEFAULT 'draft'::questionnaire_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  app_link text,
+  img_link text,
   CONSTRAINT questionnaires_pkey PRIMARY KEY (id),
   CONSTRAINT questionnaires_administrator_id_fkey FOREIGN KEY (administrator_id) REFERENCES public.profiles(id)
 );
