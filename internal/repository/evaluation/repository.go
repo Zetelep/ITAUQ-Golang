@@ -75,6 +75,12 @@ type Repository interface {
 	// GetRespondentIdentity returns age/gender/occupation for the detail
 	// endpoint. ErrRespondentNotFound if the id is unknown.
 	GetRespondentIdentity(context.Context, string) (*RespondentIdentity, error)
+
+	// Batch methods for report aggregation — fetch data for multiple
+	// respondents in a single query to avoid N+1.
+	BatchListAnswers(context.Context, []string) (map[string]map[int]int, error)
+	BatchListSUSAnswers(context.Context, []string) (map[string]map[int]int, error)
+	BatchListTaskAttempts(context.Context, []string) (map[string][]TaskAttemptRow, error)
 }
 
 // RespondentIdentity is the small identity slice needed for the detail page.
@@ -339,6 +345,63 @@ func (r *MemoryRepository) GetRespondentIdentity(_ context.Context, id string) (
 		Gender:     p.Gender,
 		Occupation: p.Occupation,
 	}, nil
+}
+
+func (r *MemoryRepository) BatchListAnswers(_ context.Context, respondentIDs []string) (map[string]map[int]int, error) {
+	r.src.mu.RLock()
+	defer r.src.mu.RUnlock()
+	out := make(map[string]map[int]int, len(respondentIDs))
+	for _, rid := range respondentIDs {
+		if src, ok := r.src.Answers[rid]; ok {
+			m := make(map[int]int, len(src))
+			for k, v := range src {
+				m[k] = v
+			}
+			out[rid] = m
+		}
+	}
+	return out, nil
+}
+
+func (r *MemoryRepository) BatchListSUSAnswers(_ context.Context, respondentIDs []string) (map[string]map[int]int, error) {
+	r.src.mu.RLock()
+	defer r.src.mu.RUnlock()
+	out := make(map[string]map[int]int, len(respondentIDs))
+	for _, rid := range respondentIDs {
+		if src, ok := r.src.SUS[rid]; ok {
+			m := make(map[int]int, len(src))
+			for k, v := range src {
+				m[k] = v
+			}
+			out[rid] = m
+		}
+	}
+	return out, nil
+}
+
+func (r *MemoryRepository) BatchListTaskAttempts(_ context.Context, respondentIDs []string) (map[string][]TaskAttemptRow, error) {
+	r.src.mu.RLock()
+	defer r.src.mu.RUnlock()
+	out := make(map[string][]TaskAttemptRow, len(respondentIDs))
+	for _, rid := range respondentIDs {
+		src := r.src.Attempts[rid]
+		rows := make([]TaskAttemptRow, 0, len(src))
+		for _, a := range src {
+			title := ""
+			if s, ok := r.src.Scenarios[a.TaskScenarioID]; ok {
+				title = s.Title
+			}
+			rows = append(rows, TaskAttemptRow{
+				TaskScenarioID:  a.TaskScenarioID,
+				Title:           title,
+				IsSuccess:       a.IsSuccess,
+				DurationSeconds: a.DurationSeconds,
+			})
+		}
+		sort.Slice(rows, func(i, j int) bool { return rows[i].TaskScenarioID < rows[j].TaskScenarioID })
+		out[rid] = rows
+	}
+	return out, nil
 }
 
 // LinkRecord is the in-memory representation of an evaluation link, kept in

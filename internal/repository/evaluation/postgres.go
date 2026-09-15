@@ -235,6 +235,79 @@ func (r *PostgresRepository) GetRespondentIdentity(ctx context.Context, id strin
 	return &out, nil
 }
 
+// BatchListAnswers returns answers for multiple respondent IDs in one query.
+func (r *PostgresRepository) BatchListAnswers(ctx context.Context, respondentIDs []string) (map[string]map[int]int, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT respondent_id, item_id, score FROM public.questionnaire_answers WHERE respondent_id = ANY($1)`,
+		respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list answers: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string]map[int]int, len(respondentIDs))
+	for rows.Next() {
+		var rid string
+		var itemID, score int
+		if err := rows.Scan(&rid, &itemID, &score); err != nil {
+			return nil, fmt.Errorf("scan batch answer: %w", err)
+		}
+		if out[rid] == nil {
+			out[rid] = make(map[int]int)
+		}
+		out[rid][itemID] = score
+	}
+	return out, rows.Err()
+}
+
+// BatchListSUSAnswers returns SUS answers for multiple respondent IDs in one query.
+func (r *PostgresRepository) BatchListSUSAnswers(ctx context.Context, respondentIDs []string) (map[string]map[int]int, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT respondent_id, item_id, score FROM public.sus_answers WHERE respondent_id = ANY($1)`,
+		respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list sus answers: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string]map[int]int, len(respondentIDs))
+	for rows.Next() {
+		var rid string
+		var itemID, score int
+		if err := rows.Scan(&rid, &itemID, &score); err != nil {
+			return nil, fmt.Errorf("scan batch sus answer: %w", err)
+		}
+		if out[rid] == nil {
+			out[rid] = make(map[int]int)
+		}
+		out[rid][itemID] = score
+	}
+	return out, rows.Err()
+}
+
+// BatchListTaskAttempts returns task attempts for multiple respondent IDs in one query.
+func (r *PostgresRepository) BatchListTaskAttempts(ctx context.Context, respondentIDs []string) (map[string][]TaskAttemptRow, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT a.respondent_id, a.task_scenario_id, s.title, a.is_success, a.duration_seconds
+		FROM public.task_scenario_attempts a
+		JOIN public.task_scenarios s ON s.id = a.task_scenario_id
+		WHERE a.respondent_id = ANY($1)
+		ORDER BY s.task_order ASC, s.created_at ASC`,
+		respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list task attempts: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[string][]TaskAttemptRow, len(respondentIDs))
+	for rows.Next() {
+		var rid string
+		var a TaskAttemptRow
+		if err := rows.Scan(&rid, &a.TaskScenarioID, &a.Title, &a.IsSuccess, &a.DurationSeconds); err != nil {
+			return nil, fmt.Errorf("scan batch attempt: %w", err)
+		}
+		out[rid] = append(out[rid], a)
+	}
+	return out, rows.Err()
+}
+
 type rowScanner interface{ Scan(...any) error }
 
 func scanRespondentRow(row rowScanner) (RespondentRow, error) {

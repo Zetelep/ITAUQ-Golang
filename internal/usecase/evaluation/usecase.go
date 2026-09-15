@@ -69,12 +69,26 @@ func (u *Usecase) ListRespondents(
 		return nil, domain.Page{}, fmt.Errorf("list respondents: %w", err)
 	}
 
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.RespondentID
+	}
+	allAnswers, err := u.repo.BatchListAnswers(ctx, ids)
+	if err != nil {
+		return nil, domain.Page{}, fmt.Errorf("batch list answers: %w", err)
+	}
+	allSUS, err := u.repo.BatchListSUSAnswers(ctx, ids)
+	if err != nil {
+		return nil, domain.Page{}, fmt.Errorf("batch list sus answers: %w", err)
+	}
+	allAttempts, err := u.repo.BatchListTaskAttempts(ctx, ids)
+	if err != nil {
+		return nil, domain.Page{}, fmt.Errorf("batch list task attempts: %w", err)
+	}
+
 	out := make([]domain.RespondentSummary, 0, len(rows))
 	for _, row := range rows {
-		summary, err := u.buildSummary(ctx, row)
-		if err != nil {
-			return nil, domain.Page{}, err
-		}
+		summary := u.buildSummaryFromBatch(row, allAnswers[row.RespondentID], allSUS[row.RespondentID], allAttempts[row.RespondentID])
 		out = append(out, summary)
 	}
 
@@ -182,6 +196,19 @@ func (u *Usecase) GetQuestionnaireReport(ctx context.Context, questionnaireID, c
 		return nil, fmt.Errorf("list respondent ids: %w", err)
 	}
 
+	allAnswers, err := u.repo.BatchListAnswers(ctx, respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list answers: %w", err)
+	}
+	allSUS, err := u.repo.BatchListSUSAnswers(ctx, respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list sus answers: %w", err)
+	}
+	allAttempts, err := u.repo.BatchListTaskAttempts(ctx, respondentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("batch list task attempts: %w", err)
+	}
+
 	perCatNorm := make(map[string]float64)
 	perCatCount := make(map[string]int)
 	var overallSum float64
@@ -192,10 +219,7 @@ func (u *Usecase) GetQuestionnaireReport(ctx context.Context, questionnaireID, c
 	var successCountKnown int
 
 	for _, rid := range respondentIDs {
-		answers, err := u.repo.ListAnswers(ctx, rid)
-		if err != nil {
-			return nil, fmt.Errorf("list answers for %s: %w", rid, err)
-		}
+		answers := allAnswers[rid]
 		stats := itauq.ComputeCategoryStats(u.itauqInst, answers)
 		if len(stats) == 0 {
 			continue
@@ -211,19 +235,12 @@ func (u *Usecase) GetQuestionnaireReport(ctx context.Context, questionnaireID, c
 			overallCount++
 		}
 
-		susAns, err := u.repo.ListSUSAnswers(ctx, rid)
-		if err != nil {
-			return nil, fmt.Errorf("list sus answers for %s: %w", rid, err)
-		}
-		if score, _, err := sus.ComputeScore(u.susInst, susAns); err == nil {
+		if score, _, err := sus.ComputeScore(u.susInst, allSUS[rid]); err == nil {
 			susSum += score
 			susCount++
 		}
 
-		attempts, err := u.repo.ListTaskAttempts(ctx, rid)
-		if err != nil {
-			return nil, fmt.Errorf("list attempts for %s: %w", rid, err)
-		}
+		attempts := allAttempts[rid]
 		if len(attempts) > 0 {
 			known := 0
 			successes := 0
@@ -288,12 +305,8 @@ func (u *Usecase) canAccess(administratorID, callerID, callerRole string) bool {
 	}
 }
 
-// buildSummary computes the four score fields for the list endpoint.
-func (u *Usecase) buildSummary(ctx context.Context, row repo.RespondentRow) (domain.RespondentSummary, error) {
-	answers, err := u.repo.ListAnswers(ctx, row.RespondentID)
-	if err != nil {
-		return domain.RespondentSummary{}, fmt.Errorf("list answers: %w", err)
-	}
+// buildSummaryFromBatch builds a RespondentSummary from pre-fetched batch data.
+func (u *Usecase) buildSummaryFromBatch(row repo.RespondentRow, answers map[int]int, susAns map[int]int, tasks []repo.TaskAttemptRow) domain.RespondentSummary {
 	stats := itauq.ComputeCategoryStats(u.itauqInst, answers)
 	perCat := make(map[string]float64, len(stats))
 	for _, s := range stats {
@@ -301,16 +314,8 @@ func (u *Usecase) buildSummary(ctx context.Context, row repo.RespondentRow) (dom
 	}
 	_, overall, ok := itauq.OverallScore(perCat, u.itauqInst.Instrument)
 
-	susAns, err := u.repo.ListSUSAnswers(ctx, row.RespondentID)
-	if err != nil {
-		return domain.RespondentSummary{}, fmt.Errorf("list sus answers: %w", err)
-	}
 	susScore, _, _ := sus.ComputeScore(u.susInst, susAns)
 
-	tasks, err := u.repo.ListTaskAttempts(ctx, row.RespondentID)
-	if err != nil {
-		return domain.RespondentSummary{}, fmt.Errorf("list attempts: %w", err)
-	}
 	var successPct *float64
 	if len(tasks) > 0 {
 		known := 0
@@ -345,7 +350,7 @@ func (u *Usecase) buildSummary(ctx context.Context, row repo.RespondentRow) (dom
 		s.EvaluationWebsiteSUSScore = &v
 	}
 	s.TaskSuccessRatePct = successPct
-	return s, nil
+	return s
 }
 
 // round2 rounds to two decimals. Duplicated here to avoid importing pkg/itauq
