@@ -217,8 +217,8 @@
             "id": 30,
             "category": "Learnability",
             "text": "Panduan atau penjelasan dalam Aplikasi {AppName} memadai untuk membantu saya memahami cara menggunakannya.",
-            "minLabel": "sangat sulit",
-            "maxLabel": "sangat mudah"
+            "minLabel": "sangat memadai",
+            "maxLabel": "sangat memadai"
         }
     ]
 }
