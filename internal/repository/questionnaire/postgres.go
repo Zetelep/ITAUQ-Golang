@@ -17,13 +17,13 @@ func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-const questionnaireColumns = `id, administrator_id, title, app_name, description, itauq_version, status::text, created_at, updated_at`
+const questionnaireColumns = `id, administrator_id, title, app_name, description, itauq_version, status::text, app_link, img_link, created_at, updated_at`
 
 func (r *PostgresRepository) Create(ctx context.Context, q *domain.Questionnaire) error {
 	_, err := r.db.Exec(ctx, `INSERT INTO public.questionnaires
-		(id, administrator_id, title, app_name, description, itauq_version, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, $8, $9)`,
-		q.ID, q.AdministratorID, q.Title, q.AppName, q.Description, q.ItauqVersion, string(q.Status), q.CreatedAt, q.UpdatedAt)
+		(id, administrator_id, title, app_name, description, itauq_version, status, app_link, img_link, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), NULLIF($9, ''), $10, $11)`,
+		q.ID, q.AdministratorID, q.Title, q.AppName, q.Description, q.ItauqVersion, string(q.Status), q.AppLink, q.ImgLink, q.CreatedAt, q.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create questionnaire: %w", err)
 	}
@@ -112,6 +112,16 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, in domain.Up
 		args = append(args, string(*in.Status))
 		argIdx++
 	}
+	if in.AppLink != nil {
+		setClauses += fmt.Sprintf(", app_link = NULLIF($%d, '')", argIdx)
+		args = append(args, *in.AppLink)
+		argIdx++
+	}
+	if in.ImgLink != nil {
+		setClauses += fmt.Sprintf(", img_link = NULLIF($%d, '')", argIdx)
+		args = append(args, *in.ImgLink)
+		argIdx++
+	}
 
 	query := fmt.Sprintf("UPDATE public.questionnaires SET %s WHERE id = $1 RETURNING %s", setClauses, questionnaireColumns)
 	row := r.db.QueryRow(ctx, query, args...)
@@ -141,12 +151,18 @@ type rowScanner interface{ Scan(...any) error }
 func scanQuestionnaire(row rowScanner) (domain.Questionnaire, error) {
 	var q domain.Questionnaire
 	var status string
-	var description sql.NullString
-	if err := row.Scan(&q.ID, &q.AdministratorID, &q.Title, &q.AppName, &description, &q.ItauqVersion, &status, &q.CreatedAt, &q.UpdatedAt); err != nil {
+	var description, appLink, imgLink sql.NullString
+	if err := row.Scan(&q.ID, &q.AdministratorID, &q.Title, &q.AppName, &description, &q.ItauqVersion, &status, &appLink, &imgLink, &q.CreatedAt, &q.UpdatedAt); err != nil {
 		return q, err
 	}
 	if description.Valid {
 		q.Description = description.String
+	}
+	if appLink.Valid {
+		q.AppLink = appLink.String
+	}
+	if imgLink.Valid {
+		q.ImgLink = imgLink.String
 	}
 	q.Status = domain.Status(status)
 	return q, nil

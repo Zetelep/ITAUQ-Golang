@@ -84,6 +84,8 @@ type EvaluationPayload struct {
 type QuestionnaireView struct {
 	Title   string `json:"title"`
 	AppName string `json:"app_name"`
+	AppLink string `json:"app_link,omitempty"`
+	ImgLink string `json:"img_link,omitempty"`
 }
 
 // TaskScenarioView is the task scenario shape returned to respondents.
@@ -206,7 +208,7 @@ func (u *Usecase) GetEvaluation(ctx context.Context, token string) (*EvaluationP
 	}
 
 	return &EvaluationPayload{
-		Questionnaire:      QuestionnaireView{Title: q.Title, AppName: q.AppName},
+		Questionnaire:      QuestionnaireView{Title: q.Title, AppName: q.AppName, AppLink: q.AppLink, ImgLink: q.ImgLink},
 		EligibilityCriteria: critViews,
 		TaskScenarios:      views,
 		Itauq: ItauqView{

@@ -3,6 +3,7 @@ package questionnaire
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 
@@ -23,9 +24,17 @@ func (u *Usecase) Create(ctx context.Context, in domain.CreateInput, administrat
 	in.Title = strings.TrimSpace(in.Title)
 	in.AppName = strings.TrimSpace(in.AppName)
 	in.Description = strings.TrimSpace(in.Description)
+	in.AppLink = strings.TrimSpace(in.AppLink)
+	in.ImgLink = strings.TrimSpace(in.ImgLink)
 
 	if in.Title == "" || in.AppName == "" {
 		return nil, errors.New("title and app_name are required")
+	}
+	if err := validateURL(in.AppLink); err != nil {
+		return nil, errors.New("app_link: " + err.Error())
+	}
+	if err := validateURL(in.ImgLink); err != nil {
+		return nil, errors.New("img_link: " + err.Error())
 	}
 
 	if in.Status == "" {
@@ -44,6 +53,8 @@ func (u *Usecase) Create(ctx context.Context, in domain.CreateInput, administrat
 		Description:     in.Description,
 		ItauqVersion:    in.ItauqVersion,
 		Status:          in.Status,
+		AppLink:         in.AppLink,
+		ImgLink:         in.ImgLink,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
@@ -102,6 +113,20 @@ func (u *Usecase) Update(ctx context.Context, id string, in domain.UpdateInput, 
 	if existing.AdministratorID != callerID {
 		return nil, repo.ErrForbidden
 	}
+	if in.AppLink != nil {
+		v := strings.TrimSpace(*in.AppLink)
+		if err := validateURL(v); err != nil {
+			return nil, errors.New("app_link: " + err.Error())
+		}
+		in.AppLink = &v
+	}
+	if in.ImgLink != nil {
+		v := strings.TrimSpace(*in.ImgLink)
+		if err := validateURL(v); err != nil {
+			return nil, errors.New("img_link: " + err.Error())
+		}
+		in.ImgLink = &v
+	}
 	return u.repo.Update(ctx, id, in)
 }
 
@@ -114,4 +139,15 @@ func (u *Usecase) Delete(ctx context.Context, id, callerID string) error {
 		return repo.ErrForbidden
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func validateURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	u, err := url.ParseRequestURI(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return errors.New("must be a valid http/https URL")
+	}
+	return nil
 }
